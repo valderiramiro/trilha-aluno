@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trilha do Aluno — Chamada</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f8f8f6;
+    --surface: #ffffff;
+    --border: #e2e2dd;
+    --border2: #d0d0c8;
+    --text: #1a1a18;
+    --text2: #5a5a54;
+    --text3: #9a9a90;
+    --orange: #e85d04;
+    --orange-light: #fff3ed;
+    --orange-border: #f4a261;
+    --green: #2d6a4f;
+    --green-bg: #eaf4ee;
+    --red: #9b2226;
+    --red-bg: #fdecea;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .app { max-width: 520px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.75rem; }
+  .header-icon { width: 36px; height: 36px; background: var(--orange); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; }
+  .header-icon svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .header h1 { font-size: 17px; font-weight: 600; color: var(--text); }
+  .header p { font-size: 12px; color: var(--text3); margin-top: 1px; }
+  .tabs { display: flex; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 3px; margin-bottom: 1.25rem; gap: 2px; }
+  .tab { flex: 1; padding: 7px 8px; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: var(--orange); color: #fff; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .search-wrap { position: relative; margin-bottom: 1rem; }
+  .search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; stroke: var(--text3); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  input[type=text], input[type=password] { width: 100%; padding: 10px 12px 10px 36px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-size: 14px; background: var(--surface); color: var(--text); outline: none; transition: border 0.15s; }
+  input[type=text]:focus, input[type=password]:focus { border-color: var(--orange); }
+  input.no-icon { padding-left: 12px; }
+  .results { border: 0.5px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; max-height: 320px; overflow-y: auto; }
+  .result-item { padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 0.5px solid var(--border); transition: background 0.1s; }
+  .result-item:last-child { border-bottom: none; }
+  .result-item:hover { background: var(--bg); }
+  .result-nome { font-size: 14px; font-weight: 500; }
+  .result-contrato { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .result-arrow { color: var(--text3); font-size: 18px; }
+  .empty { text-align: center; padding: 2rem; color: var(--text3); font-size: 14px; }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card-nome { font-size: 17px; font-weight: 600; }
+  .card-contrato { font-size: 13px; color: var(--text3); margin-top: 2px; margin-bottom: 1.25rem; }
+  .modulo-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; margin-top: 16px; }
+  .modulo-label:first-of-type { margin-top: 0; }
+  .aulas-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .aula-btn { border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 10px 4px; text-align: center; cursor: pointer; background: var(--bg); transition: all 0.15s; user-select: none; }
+  .aula-btn:active { transform: scale(0.96); }
+  .aula-num { font-size: 11px; color: var(--text3); margin-bottom: 5px; }
+  .aula-val { font-size: 22px; font-weight: 600; color: var(--text3); }
+  .aula-btn.presente { background: var(--green-bg); border-color: #74c69d; }
+  .aula-btn.presente .aula-val { color: var(--green); }
+  .aula-btn.falta { background: var(--red-bg); border-color: #e07070; }
+  .aula-btn.falta .aula-val { color: var(--red); }
+  .hint { font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .btn-back { display: flex; align-items: center; gap: 6px; background: none; border: none; color: var(--text2); font-size: 14px; cursor: pointer; padding: 0; margin-bottom: 1rem; }
+  .btn-back:hover { color: var(--text); }
+  .btn-back svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
+  .btn-primary { width: 100%; padding: 11px; background: var(--orange); color: #fff; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hist-item { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .hist-item:last-child { border-bottom: none; }
+  .hist-nome { font-size: 14px; font-weight: 500; }
+  .hist-det { font-size: 12px; color: var(--text2); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .badge-c { background: var(--green-bg); color: var(--green); }
+  .badge-f { background: var(--red-bg); color: var(--red); }
+  .loading { text-align: center; padding: 1.5rem; color: var(--text3); font-size: 14px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: var(--radius); font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.25s; pointer-events: none; white-space: nowrap; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.erro { background: var(--red); }
+  .saving-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--orange); margin-left: 8px; animation: pulse 1s infinite; vertical-align: middle; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .status-bar { font-size: 12px; color: var(--text3); text-align: right; margin-bottom: 8px; min-height: 18px; }
+  .pin-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 1rem; }
+  .pin-screen h2 { font-size: 18px; font-weight: 600; }
+  .pin-screen p { font-size: 14px; color: var(--text2); text-align: center; }
+  .pin-input { width: 200px; padding: 12px; text-align: center; font-size: 20px; letter-spacing: 0.2em; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
+    </div>
+    <div>
+      <h1>Trilha do Aluno</h1>
+      <p>Sistema de chamada — CEBRAC</p>
+    </div>
+  </div>
+
+  <div id="pin-screen" class="pin-screen" style="display:none;">
+    <h2>Acesso restrito</h2>
+    <p>Digite o PIN para acessar o sistema</p>
+    <input type="password" class="pin-input no-icon" id="pin-input" placeholder="••••" maxlength="6" onkeydown="if(event.key==='Enter')verificarPin()" />
+    <button class="btn-primary" style="width:200px" onclick="verificarPin()">Entrar</button>
+  </div>
+
+  <div id="app-content" style="display:none;">
+    <div class="status-bar" id="status-bar"></div>
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('busca')">Buscar</button>
+      <button class="tab" onclick="setTab('novo')">Novo aluno</button>
+      <button class="tab" onclick="setTab('historico')">Histórico</button>
+    </div>
+
+    <div id="sec-busca" class="section active">
+      <div id="busca-lista">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="search-input" placeholder="Nome ou número do contrato..." oninput="filtrar()" autocomplete="off" />
+        </div>
+        <div class="results" id="results"></div>
+      </div>
+      <div id="busca-detalhe" style="display:none;">
+        <button class="btn-back" onclick="voltarLista()">
+          <svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Voltar
+        </button>
+        <div class="card" id="detalhe-card"></div>
+      </div>
+    </div>
+
+    <div id="sec-novo" class="section">
+      <div class="card">
+        <div class="form-group">
+          <label>Nome completo</label>
+          <input type="text" class="no-icon" id="novo-nome" placeholder="Ex: João Silva Santos" />
+        </div>
+        <div class="form-group">
+          <label>Número do contrato</label>
+          <input type="text" class="no-icon" id="novo-contrato" placeholder="Ex: 38200" />
+        </div>
+        <button class="btn-primary" id="btn-salvar-novo" onclick="salvarNovoAluno()">Salvar aluno</button>
+      </div>
+    </div>
+
+    <div id="sec-historico" class="section">
+      <div class="card" id="historico-card">
+        <div class="loading">Carregando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://joszmqohhceuxhsjxxcr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvc3ptcW9oaGNldXhoc2p4eGNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODEwNjEsImV4cCI6MjA5Njg1NzA2MX0.sSPFSYVtNGbgelrcQNK2mS-1KCk13A5ROid7E0YewIg';
+const PIN_CORRETO = '2602';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const ALUNOS_BASE = [{"contrato":"37694","nome":"Gustavo Braga"},{"contrato":"37696","nome":"Carla Silvino Lopes Benin"},{"contrato":"37697","nome":"Tibisay Del Valle Figueroa Almeida"},{"contrato":"37700","nome":"Miguel Matias"},{"contrato":"37701","nome":"Giovane Barbosa Mambergue"},{"contrato":"37698","nome":"Nicolas Pereira Pinto"},{"contrato":"37702","nome":"Henrique Braga Roque"},{"contrato":"37706","nome":"Flavia Eduarda Fabris"},{"contrato":"37708","nome":"Woodeline Augustin"},{"contrato":"37709","nome":"Odelaine Riguerre"},{"contrato":"37711","nome":"Matheus Henrique Batista Bezerra"},{"contrato":"37681","nome":"Yolimiles Heredia Osoria"},{"contrato":"37684","nome":"Legnis Maria Mok Sotto"},{"contrato":"37712","nome":"Michael Soares"},{"contrato":"37714","nome":"Graciela de Fatima Oliveira"},{"contrato":"35195","nome":"Emanuely Amanda Boni de Oliveira"},{"contrato":"37699","nome":"Francieli Casagrande"},{"contrato":"37685","nome":"Lucas Fabricio Castillo Moreno"},{"contrato":"37707","nome":"Adrian Jesus Rojas Martinez"},{"contrato":"37717","nome":"Jhonatan Kaleu Prado Lorena"},{"contrato":"37718","nome":"Bárbara Cetra Martins"},{"contrato":"37720","nome":"Emilly Isabelly Lopes Gonçalves Malinoski"},{"contrato":"37710","nome":"Matheus Sinvaldo de Oliveira Pereira"},{"contrato":"37721","nome":"Ana Julia Reginatto Vier"},{"contrato":"37723","nome":"Maurelys Alejandra Marín Oliveros"},{"contrato":"37725","nome":"Weriklin Mathaus Dogado de Oliveira"},{"contrato":"37730","nome":"Monique Santos Pereira Parente"},{"contrato":"37676","nome":"Saionara Jane Tolotti Marchewicz"},{"contrato":"37733","nome":"Murilo Pereira da Silva"},{"contrato":"37734","nome":"Gustavo Ribeiro da Silva"},{"contrato":"37731","nome":"Ivanilda do Nascimento"},{"contrato":"37722","nome":"João Eduardo Mórtola Wyse"},{"contrato":"37737","nome":"Daniel Correa de Lima"},{"contrato":"37739","nome":"Mayelison Mikael Mendes Ferreira"},{"contrato":"37735","nome":"Francisca Aline Lima Araujo"},{"contrato":"37713","nome":"Ana Julia Andrede Soares"},{"contrato":"37726","nome":"Daimar Vanessa Flores Delgado"},{"contrato":"37683","nome":"Yudy Mailyn Martinez Perez"},{"contrato":"37743","nome":"Simone Aparecida Ribeiro"},{"contrato":"37746","nome":"Marlene Aparecida da Rocha"},{"contrato":"37781","nome":"Maria do Carmo Borges da Fonseca"},{"contrato":"37765","nome":"Emanuel Carmona Marini"},{"contrato":"37788","nome":"Alyson Lourenço Massucatto"},{"contrato":"37766","nome":"Milene dos Santos Freitas"},{"contrato":"37755","nome":"Andres Alejandro Rodriguez Benitez"},{"contrato":"37768","nome":"Lieda Mara Peres Abade"},{"contrato":"37792","nome":"Osvaldo dos Santos Bispo de Assis"},{"contrato":"37749","nome":"Vitor Kawaguchi Toniello de Almeida"},{"contrato":"37769","nome":"Eduarda Czar"},{"contrato":"37770","nome":"Adriana Eliane Erba Wichoscki Melo"},{"contrato":"37757","nome":"Vinicyus Emanuell Nascimento Ribeiro"},{"contrato":"37786","nome":"Maria Eduarda Silva Santos"},{"contrato":"37753","nome":"Pedro de Souza Raisi Grigorio"},{"contrato":"37750","nome":"Vitor Eduardo Poersch de Godoys"},{"contrato":"37774","nome":"João Pedro Bordin"},{"contrato":"37759","nome":"Amanda de Camargo Machado"},{"contrato":"37775","nome":"Davi Emanuel Tomazi Galvão"},{"contrato":"37779","nome":"Lara Isabelly Ribeiro da Silva"},{"contrato":"37780","nome":"Graciéli da Cruz Maciel"},{"contrato":"37756","nome":"Vitienzo Luan Stimer Moreira"},{"contrato":"37747","nome":"Darlyne Saintilus"},{"contrato":"37748","nome":"Mikerlande Gabond"},{"contrato":"37752","nome":"Yuri Gonçalves do Nascimento"},{"contrato":"37815","nome":"Fernanda Lopes Arnezino"},{"contrato":"37795","nome":"Luana Girotto"},{"contrato":"37796","nome":"Leticia Girotto"},{"contrato":"37811","nome":"Fernanda Rabelo Penna"},{"contrato":"37813","nome":"Cauã Quadra Zavalski"},{"contrato":"37799","nome":"Jacqueline Delgado Roa"},{"contrato":"37805","nome":"Rosdely Valentina Heredia Caicedo"},{"contrato":"37807","nome":"Sofia Furmaniak"},{"contrato":"37804","nome":"Josiane Vicente Ferreira Safra"},{"contrato":"37808","nome":"Dheyson Heusser Ramos Moniz"},{"contrato":"37797","nome":"Nivaldo de Freitas Galhoti"},{"contrato":"37798","nome":"Cristofer Sobrinho Brum"},{"contrato":"37793","nome":"Gabriel Fogaça dos Santos"},{"contrato":"37754","nome":"Kaua dos Santos Herdt Pontes"},{"contrato":"37839","nome":"Gabriele Meurer"},{"contrato":"37833","nome":"Rafael Polido da Silva"},{"contrato":"37834","nome":"Camila Lisboa Pinheiro"},{"contrato":"37818","nome":"Joao Andre Wenggen"},{"contrato":"37819","nome":"Mariah Isabelly Moraes de Oliveira"},{"contrato":"37801","nome":"Raul Fernando Ferreira da Silva"},{"contrato":"37835","nome":"Fabio Rodrigues Gonçalves Junior"},{"contrato":"37827","nome":"Gabrielle da Silva de Souza"},{"contrato":"37777","nome":"Thiarles Borges Debarba"},{"contrato":"37836","nome":"Matheus Dias Moreira"},{"contrato":"37838","nome":"Zeli dos Santos Santanna"},{"contrato":"37825","nome":"Elias Roberto Ferreira dos Santos"},{"contrato":"37830","nome":"Johnny Alejandro Arana Jimenez"},{"contrato":"37829","nome":"Rhian Alonso Rahini"},{"contrato":"37828","nome":"Henry Costa dos Santos"},{"contrato":"37826","nome":"Renan Dias Coitim"},{"contrato":"37858","nome":"Graciela Almada Nunez"},{"contrato":"37853","nome":"Danilo Zweibricker"},{"contrato":"37841","nome":"Dorca Perez Gonzalez"},{"contrato":"37857","nome":"Pedro Henrique Sinhuri Finoti"},{"contrato":"37843","nome":"Roselaine Neves Simionatto"},{"contrato":"37860","nome":"Jorge Luis Torres Selema"},{"contrato":"37848","nome":"Zoiber de los Angeles Pulido Martinez"},{"contrato":"37810","nome":"Lisennys Alejandra Camacho Parra"},{"contrato":"37862","nome":"Ilson Almeida Hermann"},{"contrato":"37846","nome":"Glessy Leliebre Petell"},{"contrato":"38035","nome":"Jose Glauciano do Nascimento"},{"contrato":"37851","nome":"Tania Aparecida Raizel"},{"contrato":"37844","nome":"Eduardo Guilherme Echardt de Oliveira"},{"contrato":"37845","nome":"Rafaela Lourenço de Lima"},{"contrato":"37850","nome":"Lucas Bitencourt Sanches"},{"contrato":"37854","nome":"Leonardo da Silva dos Santos"},{"contrato":"37874","nome":"Evellyn Monteiro Gomes"},{"contrato":"37870","nome":"Yasmin Lunardi Trentin"},{"contrato":"37905","nome":"Milena Araujo Silva Andruchevitz"},{"contrato":"37877","nome":"Jacobert Nappoleon"},{"contrato":"37879","nome":"Mirela Inea"},{"contrato":"37884","nome":"Maria Eduarda de Oliveira Santos"},{"contrato":"37900","nome":"Solange Espindola Franca"},{"contrato":"37840","nome":"Jhennifer Fernanda Ferreira Flores"},{"contrato":"37875","nome":"Ana Julia Bones"},{"contrato":"37882","nome":"Ilma De Fatima Albert"},{"contrato":"37896","nome":"Izabelli Miranda Arconti"},{"contrato":"37880","nome":"Maria Eliza Benedito Giacomel"},{"contrato":"37883","nome":"Andre Ricarte de Souza"},{"contrato":"37891","nome":"Kamilla Cristina Fiuza Moreira"},{"contrato":"37893","nome":"James Romeus"},{"contrato":"37902","nome":"Cael Oliveira Roginski"},{"contrato":"37903","nome":"Camila Oliveira Roginski"},{"contrato":"37904","nome":"Evelin Kerber de Lima"},{"contrato":"37901","nome":"Bianca Eloise Ribeiro"},{"contrato":"37907","nome":"Moliana Jean"},{"contrato":"37924","nome":"Ana Paula de Freitas Barbosa"},{"contrato":"37919","nome":"Sophie Emanueli Maiczuk"},{"contrato":"37890","nome":"Kaua Maximiano de Lara Luz"},{"contrato":"37918","nome":"José Eduardo Bordinhão Alves"},{"contrato":"37908","nome":"Evely Rodrigues dos Santos"},{"contrato":"37909","nome":"Andrey Dombroski dos Santos"},{"contrato":"37910","nome":"Malena Margarita Concepcion Alonso"},{"contrato":"37922","nome":"Brayan Fites Domingues"},{"contrato":"37929","nome":"Moliana Jean"},{"contrato":"37911","nome":"Dalylove Desir"},{"contrato":"37928","nome":"Maria Vitoria Ribeiro Agostinho"},{"contrato":"37927","nome":"Elisângela Nara Mendes Ferreira"},{"contrato":"37892","nome":"Julia Maria Sedrez Alberti"},{"contrato":"37912","nome":"Yuri dos Santos"},{"contrato":"37897","nome":"Flávia Alessandra da Costa"},{"contrato":"37913","nome":"Yelina Palacio Salazar"},{"contrato":"37915","nome":"Carlos Eduardo Teles de Oliveira"},{"contrato":"37864","nome":"Lais Moraes de Souza"},{"contrato":"37917","nome":"Judeline Saint Bonheur"},{"contrato":"37926","nome":"Adryan Ezequyel Ferreira Porto"},{"contrato":"37931","nome":"Byanca Santetti Laureano"},{"contrato":"37945","nome":"João Augusto Camargo Ferraz de Lima"},{"contrato":"37878","nome":"Bendy Bonheur"},{"contrato":"37940","nome":"Kennedy da Silva Moura"},{"contrato":"37943","nome":"Jociane Ribeiro Ragação"},{"contrato":"37951","nome":"Camila Dayane Kempner Oliveira"},{"contrato":"37921","nome":"Joao Henrique Hardt"},{"contrato":"37946","nome":"Genesis Yeraldin Mata"},{"contrato":"37944","nome":"Alicy Barbosa Correa"},{"contrato":"37809","nome":"Rosileni Vieira Leonel"},{"contrato":"37939","nome":"Ewerson Silva de Oliveira"},{"contrato":"37938","nome":"Larissa Grein Kovalski"},{"contrato":"37930","nome":"Julielen Aguiar Machado"},{"contrato":"37941","nome":"Mikael Siqueira Lourenco"},{"contrato":"37958","nome":"Gustavo Nicolau"},{"contrato":"37963","nome":"Alessandra Balbino Alvarez"},{"contrato":"37964","nome":"Luiz Henrique Ponsalves Fagundes"},{"contrato":"37960","nome":"Isabelly Oliveira Martins da Luz"},{"contrato":"37961","nome":"Matheus Vieira Siqueira"},{"contrato":"37955","nome":"Diogo dos Santos"},{"contrato":"37956","nome":"Migkarla Del Nazareteh Perales Ydrogo"},{"contrato":"37966","nome":"Felipe Chaves da Silva"},{"contrato":"37876","nome":"Ane Luiza Gouveia Janecki"},{"contrato":"37866","nome":"Yasmin Kuhl de Oliveira"},{"contrato":"37703","nome":"Ademir Antonio De Andrade"},{"contrato":"37868","nome":"Jyovana Anacleto"},{"contrato":"37899","nome":"Clara Cristina da Silva"},{"contrato":"37761","nome":"Ester da Silva Silveira"},{"contrato":"37865","nome":"Rosemar Heinz Coch Lopes"},{"contrato":"37869","nome":"Pedro Henrique Marques Paim"},{"contrato":"37817","nome":"Yuri da Silva Bernal"},{"contrato":"37727","nome":"Valentina Eliziario Martins Hegedeus Kruger"},{"contrato":"37861","nome":"Vitor Manuel Borba Hanzen"},{"contrato":"37962","nome":"Guerson Dezinor"},{"contrato":"37982","nome":"Bruno Comiran Lizzi"},{"contrato":"37981","nome":"João Augusto Mendonça Neves"},{"contrato":"37983","nome":"Lucas Miranda"},{"contrato":"37968","nome":"Beatriz Melo da Cruz Santos"},{"contrato":"37985","nome":"Julia Beatriz de Medeiros"},{"contrato":"37957","nome":"Fátima Machado"},{"contrato":"37969","nome":"Arthur Insfran Manzano"},{"contrato":"37970","nome":"Ana Julia Guidotti Cordeiro"},{"contrato":"37976","nome":"Ana Caroline do Valle"},{"contrato":"37992","nome":"Dhiogo Emanuel Farias Baldo"},{"contrato":"38006","nome":"Shaina Moise"},{"contrato":"37977","nome":"Natasha Firmiano da Silva"},{"contrato":"37995","nome":"Pedro Henrique da Silva"},{"contrato":"37996","nome":"Juliana Oliveira de Almeida"},{"contrato":"37997","nome":"Arthur Batschke Sodré"},{"contrato":"37998","nome":"Floria Raquel Torales Benitez"},{"contrato":"37993","nome":"Higor Rafael Rodrigues Zahn"},{"contrato":"37994","nome":"Nicolas Matheus Souza Brzozoski"},{"contrato":"38008","nome":"Abraham Rafael Gonzalez Aguey"},{"contrato":"38016","nome":"Maria Isabel Moncada Arredondo"},{"contrato":"38015","nome":"Cilsa Monteiro Carlos Pagnussatti"},{"contrato":"38017","nome":"Mayza Ignacio dos Reis"},{"contrato":"37986","nome":"Athael Ramos da Silva"},{"contrato":"37950","nome":"Nicollas Martins Prado"},{"contrato":"38011","nome":"Silvania Aparecida Loch Strada"},{"contrato":"37959","nome":"Wilson David García Mejia"},{"contrato":"38018","nome":"Willian Santos de Oliveira"},{"contrato":"38019","nome":"Felipe Papini"},{"contrato":"38027","nome":"Anett Del Valle Rebolledo Rojas"},{"contrato":"38010","nome":"Elielton da Silva Campos Arruda"},{"contrato":"38020","nome":"Rose Thamina Morilus"},{"contrato":"38013","nome":"Claudia Mara Stimer Knollseisen"},{"contrato":"38012","nome":"Ademir Lazarotto"},{"contrato":"38002","nome":"Vanderlei Padilha"},{"contrato":"38001","nome":"André Luiz de Almeida"},{"contrato":"38003","nome":"Anthony Matheus Michels Marico"},{"contrato":"38009","nome":"Arthur Marcelo Farias Rubio"},{"contrato":"38023","nome":"Pedro Emilio Naranjo Burgos"},{"contrato":"38024","nome":"Geriton Machado da Silva"},{"contrato":"37967","nome":"Maísa Eduarda Torres Ste"},{"contrato":"37972","nome":"Daniel Lima da Silva"},{"contrato":"37975","nome":"Rocio José Cedeno Betancourt"},{"contrato":"38029","nome":"Marcia Costa Oliveira"},{"contrato":"38030","nome":"Daniela Valentina Velasquez Uricare"},{"contrato":"38037","nome":"Bruna dos Santos Barros da Paz"},{"contrato":"38040","nome":"Dariangel Dianne Galeano Leones"},{"contrato":"38042","nome":"Laize Cristina de Meira"},{"contrato":"38045","nome":"Raissa Matsumoto Gomes da Silva"},{"contrato":"38047","nome":"Maria Eduarda Romero"},{"contrato":"38048","nome":"Angela Yoselin Contreras Ruiz"},{"contrato":"38033","nome":"Jessica Cardoso Caetano"},{"contrato":"38028","nome":"Marie Guerdine Pierre Paul"},{"contrato":"38043","nome":"Rosaini Maria Del Valle Rondon Alzolay"},{"contrato":"38051","nome":"Victoria Valentina Tovar Paduani"},{"contrato":"38034","nome":"Pollyanna Taylor Sedor"},{"contrato":"38061","nome":"Gabriel Batista Bernardo"},{"contrato":"38062","nome":"Rosileni Vieira Leonel"},{"contrato":"38060","nome":"Jacqueline Coraço"},{"contrato":"38056","nome":"Joao Gustavo da Cruz Nogueira"},{"contrato":"38066","nome":"Witsandia Sarah Exil"},{"contrato":"38065","nome":"Matheus Henrique Correa Unger"},{"contrato":"38067","nome":"Murillo Henrique Neves Barbosa"},{"contrato":"38050","nome":"Marvens Jean"},{"contrato":"37971","nome":"Gabriel Padilha Cualho"},{"contrato":"38041","nome":"Paulina Rodrigues"},{"contrato":"38039","nome":"Selma Roxa Subrinho Bueno"},{"contrato":"38055","nome":"Tatiana Santos da Silva Bauzewein"},{"contrato":"38052","nome":"Amanda Damiani Quirino"},{"contrato":"38058","nome":"Gabrielle Cantidio da Silva"},{"contrato":"38064","nome":"Lorwendy Junior Pierre Louis"},{"contrato":"38063","nome":"Andriel Kaiser Escobar"},{"contrato":"38073","nome":"Cliciane da Silva Hendrek"},{"contrato":"38084","nome":"Ana Júlia de Oliveira Teixeira"},{"contrato":"38072","nome":"Sofia Antonia Ferreira Emidio"},{"contrato":"38094","nome":"Marcone de Almeida Souza"},{"contrato":"38087","nome":"Leticia Claro Florentino"},{"contrato":"38086","nome":"Estefani Barbosa Xisto"},{"contrato":"38091","nome":"João Paulo Oliveira da Silva"},{"contrato":"38092","nome":"Adrini Menezes da Silva"},{"contrato":"38093","nome":"Felipe Gabriel Ramalho Marasca"},{"contrato":"38096","nome":"Ronaldo Correa Kutchma"},{"contrato":"38097","nome":"Erick Gabriel Paulino Uliano"},{"contrato":"38004","nome":"Pedro Gabriel Fidelis Seither"},{"contrato":"38098","nome":"Carla Jenniffer Paulino de Souza"},{"contrato":"38053","nome":"Maria Julia Sotelo"},{"contrato":"38085","nome":"Vitor Hugo do Amaral Tobe"},{"contrato":"38090","nome":"Arthur Silva dos Santos"},{"contrato":"36307","nome":"Eduarda Gomes da Silva"},{"contrato":"38104","nome":"Jesula Eliezer"},{"contrato":"38109","nome":"Gusttavo Pilatti Posseti"},{"contrato":"38110","nome":"Isadora de França"},{"contrato":"38111","nome":"Gabriel Wegner Coradim"},{"contrato":"38105","nome":"Emanuelly Vitoria Reolon"},{"contrato":"38100","nome":"Brenda Rhaissa Cardoso da Silva"},{"contrato":"38114","nome":"Cauani de Souza Guimarães"},{"contrato":"38046","nome":"Carlos Eduardo da Silva Padilha"},{"contrato":"38101","nome":"Edcarlos Silva de Araújo"},{"contrato":"38102","nome":"Nicolas Fernandes da Rocha"},{"contrato":"38121","nome":"Kayky Matheus Fontes Lucas"},{"contrato":"38122","nome":"Calebe Just"},{"contrato":"38124","nome":"Cecilia Maria Davantel Kaminski"},{"contrato":"38123","nome":"Danielle Cristina do Prado Pereira"},{"contrato":"38103","nome":"Franyer Jose Atencio Sencial"},{"contrato":"38116","nome":"Gabriel Monteiro Alexandre"},{"contrato":"38120","nome":"Maria Edelin Marcano Pena"},{"contrato":"38118","nome":"Viviane Frutuoso Ferreira"},{"contrato":"38119","nome":"Luiz Antônio Cardoso de Souza"},{"contrato":"38117","nome":"Dhominy Padilha de Morais"},{"contrato":"38137","nome":"Daime Parra Mosqueda"},{"contrato":"38135","nome":"Tayna de Matos Pontes"},{"contrato":"38139","nome":"João Paulo Oliveira da Silva"},{"contrato":"38127","nome":"Josiane Vicente Ferreira Safra"},{"contrato":"38128","nome":"Luciana Camile Alves"},{"contrato":"38136","nome":"Vitor Henrique Martins dos Santos"},{"contrato":"38130","nome":"Adrielli Fernanda da Silva Dalava Morais"},{"contrato":"38131","nome":"Jesus Javier Rincones Antiveros"},{"contrato":"38125","nome":"Noreilys Anniluz Navarro Bompart"},{"contrato":"38134","nome":"Jhony Felipe Martins Ricardi"},{"contrato":"38132","nome":"Izadora Limberger"},{"contrato":"38140","nome":"Ana Beathriz da Silva Bauzewein"},{"contrato":"38142","nome":"Lovely Senat"},{"contrato":"38143","nome":"Chedlie Cenat"},{"contrato":"38129","nome":"Guilherme Vinicius de Barba"},{"contrato":"38147","nome":"Darwin Antonio Garcia Flores"},{"contrato":"38151","nome":"Beatriz Zago Barroso"},{"contrato":"38133","nome":"Gessé Carlos Bahiense Mota"},{"contrato":"38149","nome":"Kauã Roda"},{"contrato":"38152","nome":"Maysa Preslak Matos"},{"contrato":"38145","nome":"Gustavo Henrique de Lima"},{"contrato":"38148","nome":"Eliege Aparecida Novack"}];
+
+let todosAlunos = [...ALUNOS_BASE];
+let alunoAtual = null;
+let presencasCache = {};
+let autenticado = false;
+
+function verificarPin() {
+  const pin = document.getElementById('pin-input').value;
+  if (pin === PIN_CORRETO) {
+    autenticado = true;
+    document.getElementById('pin-screen').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    carregarTodosAlunos();
+  } else {
+    toast('PIN incorreto', true);
+    document.getElementById('pin-input').value = '';
+  }
+}
+
+async function carregarTodosAlunos() {
+  setStatus('Sincronizando...');
+  const { data } = await sb.from('presencas').select('*');
+  if (data) {
+    presencasCache = {};
+    data.forEach(r => {
+      if (!presencasCache[r.contrato]) presencasCache[r.contrato] = {};
+      if (!presencasCache[r.contrato][r.modulo]) presencasCache[r.contrato][r.modulo] = {};
+      presencasCache[r.contrato][r.modulo][r.aula] = r.status;
+    });
+  }
+  const { data: novos } = await sb.from('alunos_extras').select('*');
+  if (novos && novos.length) {
+    const contratosBases = new Set(ALUNOS_BASE.map(a => a.contrato));
+    novos.forEach(a => { if (!contratosBases.has(a.contrato)) todosAlunos.push(a); });
+  }
+  setStatus('');
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('status-bar');
+  el.innerHTML = msg ? `${msg}<span class="saving-dot"></span>` : '';
+}
+
+function normalizar(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function filtrar() {
+  const q = normalizar(document.getElementById('search-input').value.trim());
+  const el = document.getElementById('results');
+  if (!q || q.length < 2) { el.innerHTML = '<div class="empty">Digite para buscar</div>'; return; }
+  const found = todosAlunos.filter(a => normalizar(a.nome).includes(q) || a.contrato.includes(q)).slice(0, 15);
+  if (!found.length) { el.innerHTML = '<div class="empty">Nenhum aluno encontrado</div>'; return; }
+  el.innerHTML = found.map(a => `
+    <div class="result-item" onclick="abrirAluno('${a.contrato}')">
+      <div><div class="result-nome">${a.nome}</div><div class="result-contrato">Contrato ${a.contrato}</div></div>
+      <span class="result-arrow">›</span>
+    </div>`).join('');
+}
+
+function abrirAluno(contrato) {
+  alunoAtual = todosAlunos.find(a => a.contrato === contrato);
+  if (!alunoAtual) return;
+  document.getElementById('busca-lista').style.display = 'none';
+  document.getElementById('busca-detalhe').style.display = 'block';
+  renderDetalhe();
+}
+
+function voltarLista() {
+  alunoAtual = null;
+  document.getElementById('busca-lista').style.display = 'block';
+  document.getElementById('busca-detalhe').style.display = 'none';
+}
+
+function getStatus(contrato, modulo, aula) {
+  return (presencasCache[contrato] && presencasCache[contrato][modulo] && presencasCache[contrato][modulo][aula]) || '';
+}
+
+async function ciclar(contrato, modulo, aula) {
+  const atual = getStatus(contrato, modulo, aula);
+  const proximo = atual === '' ? 'C' : atual === 'C' ? 'F' : '';
+  if (!presencasCache[contrato]) presencasCache[contrato] = {};
+  if (!presencasCache[contrato][modulo]) presencasCache[contrato][modulo] = {};
+  if (proximo === '') {
+    delete presencasCache[contrato][modulo][aula];
+  } else {
+    presencasCache[contrato][modulo][aula] = proximo;
+  }
+  renderDetalhe();
+  setStatus('Salvando');
+  if (proximo === '') {
+    await sb.from('presencas').delete().eq('contrato', contrato).eq('modulo', modulo).eq('aula', aula);
+  } else {
+    await sb.from('presencas').upsert({ contrato, modulo, aula, status: proximo, nome: alunoAtual.nome }, { onConflict: 'contrato,modulo,aula' });
+  }
+  setStatus('');
+}
+
+function renderAulas(contrato, modulo, label) {
+  let html = `<div class="modulo-label">${label}</div><div class="aulas-row">`;
+  for (let i = 1; i <= 4; i++) {
+    const s = getStatus(contrato, modulo, 'P' + i);
+    const cls = s === 'C' ? 'presente' : s === 'F' ? 'falta' : '';
+    const val = s || '—';
+    html += `<div class="aula-btn ${cls}" onclick="ciclar('${contrato}','${modulo}','P${i}')">
+      <div class="aula-num">Aula ${i}</div>
+      <div class="aula-val">${val}</div>
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderDetalhe() {
+  const c = alunoAtual.contrato;
+  document.getElementById('detalhe-card').innerHTML = `
+    <div class="card-nome">${alunoAtual.nome}</div>
+    <div class="card-contrato">Contrato ${c}</div>
+    ${renderAulas(c, 'PIEP', 'PIEP — 4 aulas')}
+    ${renderAulas(c, 'EMP', 'Empregabilidade — 4 aulas')}
+    <div class="hint">Toque para alternar: — → C (presente) → F (falta) → —</div>`;
+}
+
+async function salvarNovoAluno() {
+  const nome = document.getElementById('novo-nome').value.trim();
+  const contrato = document.getElementById('novo-contrato').value.trim();
+  if (!nome || !contrato) { toast('Preencha nome e contrato', true); return; }
+  if (todosAlunos.find(a => a.contrato === contrato)) { toast('Contrato já cadastrado', true); return; }
+  const btn = document.getElementById('btn-salvar-novo');
+  btn.disabled = true;
+  setStatus('Salvando');
+  const { error } = await sb.from('alunos_extras').insert({ contrato, nome });
+  btn.disabled = false;
+  setStatus('');
+  if (error) { toast('Erro ao salvar', true); return; }
+  todosAlunos.push({ contrato, nome });
+  document.getElementById('novo-nome').value = '';
+  document.getElementById('novo-contrato').value = '';
+  toast(`${nome} cadastrado com sucesso`);
+}
+
+function setTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['busca','novo','historico'][i] === tab));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + tab).classList.add('active');
+  if (tab === 'historico') carregarHistorico();
+}
+
+async function carregarHistorico() {
+  const el = document.getElementById('historico-card');
+  el.innerHTML = '<div class="loading">Carregando...</div>';
+  const { data } = await sb.from('presencas').select('*').order('criado_em', { ascending: false }).limit(50);
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">Nenhum lançamento ainda.</div>'; return; }
+  el.innerHTML = data.map(r => {
+    const dt = new Date(r.criado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return `<div class="hist-item">
+      <div class="hist-nome">${r.nome}</div>
+      <div class="hist-det">
+        ${r.modulo === 'PIEP' ? 'PIEP' : 'Empregabilidade'} · Aula ${r.aula.replace('P','')} ·
+        <span class="badge ${r.status === 'C' ? 'badge-c' : 'badge-f'}">${r.status === 'C' ? 'Presente' : 'Falta'}</span>
+        · ${dt}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toast(msg, erro) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (erro ? ' erro' : '') + ' show';
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+window.onload = () => {
+  document.getElementById('pin-screen').style.display = 'flex';
+};
+</script>
+</body>
+</html>
