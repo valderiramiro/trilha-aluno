@@ -1,6 +1,11 @@
 const SUPABASE_URL = 'https://joszmqohhceuxhsjxxcr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvc3ptcW9oaGNldXhoc2p4eGNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODEwNjEsImV4cCI6MjA5Njg1NzA2MX0.sSPFSYVtNGbgelrcQNK2mS-1KCk13A5ROid7E0YewIg';
-const PIN_CORRETO = '1927';
+const USUARIOS = {
+  'PROF': 'prof@26',
+  'CRA':  'cr@25',
+  'SEC':  's3c@24'
+};
+let usuarioAtual = null;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -12,14 +17,17 @@ let presencasCache = {};
 let autenticado = false;
 
 function verificarPin() {
-  const pin = document.getElementById('pin-input').value;
-  if (pin === PIN_CORRETO) {
+  const usuario = document.getElementById('usuario-input').value.trim().toUpperCase();
+  const senha = document.getElementById('pin-input').value.trim();
+  if (USUARIOS[usuario] && USUARIOS[usuario] === senha) {
     autenticado = true;
+    usuarioAtual = usuario;
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
+    document.getElementById('usuario-logado').textContent = usuarioAtual;
     carregarTodosAlunos();
   } else {
-    toast('PIN incorreto', true);
+    toast('Usuário ou senha incorretos', true);
     document.getElementById('pin-input').value = '';
   }
 }
@@ -116,7 +124,7 @@ async function ciclar(contrato, modulo, aula) {
   if (proximo === '') {
     await sb.from('presencas').delete().eq('contrato', contrato).eq('modulo', modulo).eq('aula', aula);
   } else {
-    await sb.from('presencas').upsert({ contrato, modulo, aula, status: proximo, nome: alunoAtual.nome }, { onConflict: 'contrato,modulo,aula' });
+    await sb.from('presencas').upsert({ contrato, modulo, aula, status: proximo, nome: alunoAtual.nome, usuario: usuarioAtual }, { onConflict: 'contrato,modulo,aula' });
   }
   setStatus('');
 }
@@ -207,7 +215,7 @@ async function carregarAuditoria() {
       return `<div class="hist-item">
         <div class="hist-nome">${r.nome}</div>
         <div class="hist-det">
-          ${r.modulo === 'PIEP' ? 'PIEP' : 'Empregabilidade'} · Aula ${r.aula.replace('P','')} · ${de}${para} · ${dt}
+          ${r.modulo === 'PIEP' ? 'PIEP' : 'Empregabilidade'} · Aula ${r.aula.replace('P','')} · ${de}${para} · ${r.usuario || '—'} · ${dt}
         </div>
       </div>`;
     }).join('');
@@ -218,6 +226,18 @@ function toast(msg, erro) {
   t.textContent = msg;
   t.className = 'toast' + (erro ? ' erro' : '') + ' show';
   setTimeout(() => t.className = 'toast', 2500);
+}
+
+function fazerLogout() {
+  autenticado = false;
+  usuarioAtual = null;
+  presencasCache = {};
+  todosAlunos = [];
+  document.getElementById('app-content').style.display = 'none';
+  document.getElementById('pin-screen').style.display = 'flex';
+  document.getElementById('usuario-input').value = '';
+  document.getElementById('pin-input').value = '';
+  document.getElementById('usuario-logado').textContent = '';
 }
 
 window.onload = () => {

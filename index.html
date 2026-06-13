@@ -13,16 +13,21 @@
     <div class="header-icon">
       <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
     </div>
-    <div>
+    <div style="flex:1">
       <h1>Trilha do Aluno</h1>
       <p>Sistema de chamada — CEBRAC</p>
+    </div>
+    <div style="font-size:12px;color:var(--text3);text-align:right">
+      <span id="usuario-logado" style="font-weight:600;color:var(--orange)"></span>
+      <br><span onclick="fazerLogout()" style="cursor:pointer;text-decoration:underline">Sair</span>
     </div>
   </div>
 
   <div id="pin-screen" class="pin-screen" style="display:none;">
-    <h2>Acesso restrito</h2>
-    <p>Digite o PIN para acessar o sistema</p>
-    <input type="password" class="pin-input no-icon" id="pin-input" placeholder="••••" maxlength="6" onkeydown="if(event.key==='Enter')verificarPin()" />
+    <h2>Trilha do Aluno</h2>
+    <p>Informe seu usuário e senha para acessar</p>
+    <input type="text" class="pin-input no-icon" id="usuario-input" placeholder="Usuário" maxlength="10" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')document.getElementById('pin-input').focus()" />
+    <input type="password" class="pin-input no-icon" id="pin-input" placeholder="Senha" maxlength="20" onkeydown="if(event.key==='Enter')verificarPin()" />
     <button class="btn-primary" style="width:200px" onclick="verificarPin()">Entrar</button>
   </div>
 
