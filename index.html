@@ -287,8 +287,8 @@ function renderDetalhe() {
   document.getElementById('detalhe-card').innerHTML = `
     <div class="card-nome">${alunoAtual.nome}</div>
     <div class="card-contrato">Contrato ${c}</div>
-    ${renderAulas(c, 'PIEP', 'PIEP — 4 aulas')}
-    ${renderAulas(c, 'EMP', 'Empregabilidade — 4 aulas')}
+    ${renderAulas(c, 'PIEP_2026', 'PIEP — 4 aulas')}
+    ${renderAulas(c, 'EMP_2026', 'Empregabilidade — 4 aulas')}
     <div class="hint">Toque para alternar: — → C (presente) → F (falta) → —</div>`;
 }
 
@@ -327,7 +327,7 @@ async function carregarHistorico() {
     return `<div class="hist-item">
       <div class="hist-nome">${r.nome}</div>
       <div class="hist-det">
-        ${r.modulo === 'PIEP' ? 'PIEP' : 'Empregabilidade'} · Aula ${r.aula.replace('P','')} ·
+        ${r.modulo.startsWith('PIEP') ? 'PIEP' : 'Empregabilidade'} · Aula ${r.aula.replace('P','')} ·
         <span class="badge ${r.status === 'C' ? 'badge-c' : 'badge-f'}">${r.status === 'C' ? 'Presente' : 'Falta'}</span>
         · ${dt}
       </div>
