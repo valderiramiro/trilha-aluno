@@ -65,6 +65,7 @@
   .aula-btn.falta { background: var(--red-bg); border-color: #e07070; }
   .aula-btn.falta .aula-val { color: var(--red); }
   .hint { font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .aula-dt { font-size: 9px; color: var(--text3); margin-top: 3px; line-height: 1.2; }
   .btn-back { display: flex; align-items: center; gap: 6px; background: none; border: none; color: var(--text2); font-size: 14px; cursor: pointer; padding: 0; margin-bottom: 1rem; }
   .btn-back:hover { color: var(--text); }
   .btn-back svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -118,6 +119,7 @@
       <button class="tab active" onclick="setTab('busca')">Buscar</button>
       <button class="tab" onclick="setTab('novo')">Novo aluno</button>
       <button class="tab" onclick="setTab('historico')">Histórico</button>
+      <button class="tab" onclick="setTab('auditoria')">Auditoria</button>
     </div>
 
     <div id="sec-busca" class="section active">
@@ -153,6 +155,12 @@
 
     <div id="sec-historico" class="section">
       <div class="card" id="historico-card">
+        <div class="loading">Carregando...</div>
+      </div>
+    </div>
+
+    <div id="sec-auditoria" class="section">
+      <div class="card" id="auditoria-card">
         <div class="loading">Carregando...</div>
       </div>
     </div>
@@ -201,13 +209,13 @@ async function carregarTodosAlunos() {
     pagina++;
   }
   // Carregar presenças do banco
-  const { data } = await sb.from('presencas').select('*');
+  const { data } = await sb.from('presencas').select('contrato, modulo, aula, status, atualizado_em, criado_em');
   if (data) {
     presencasCache = {};
     data.forEach(r => {
       if (!presencasCache[r.contrato]) presencasCache[r.contrato] = {};
       if (!presencasCache[r.contrato][r.modulo]) presencasCache[r.contrato][r.modulo] = {};
-      presencasCache[r.contrato][r.modulo][r.aula] = r.status;
+      presencasCache[r.contrato][r.modulo][r.aula] = { status: r.status, dt: r.atualizado_em || r.criado_em };
     });
   }
   setStatus('');
@@ -250,7 +258,15 @@ function voltarLista() {
 }
 
 function getStatus(contrato, modulo, aula) {
-  return (presencasCache[contrato] && presencasCache[contrato][modulo] && presencasCache[contrato][modulo][aula]) || '';
+  const r = presencasCache[contrato] && presencasCache[contrato][modulo] && presencasCache[contrato][modulo][aula];
+  return r ? r.status : '';
+}
+
+function getDtAula(contrato, modulo, aula) {
+  const r = presencasCache[contrato] && presencasCache[contrato][modulo] && presencasCache[contrato][modulo][aula];
+  if (!r || !r.dt) return '';
+  const d = new Date(r.dt);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 }
 
 async function ciclar(contrato, modulo, aula) {
@@ -261,7 +277,7 @@ async function ciclar(contrato, modulo, aula) {
   if (proximo === '') {
     delete presencasCache[contrato][modulo][aula];
   } else {
-    presencasCache[contrato][modulo][aula] = proximo;
+    presencasCache[contrato][modulo][aula] = { status: proximo, dt: new Date().toISOString() };
   }
   renderDetalhe();
   setStatus('Salvando');
@@ -276,12 +292,16 @@ async function ciclar(contrato, modulo, aula) {
 function renderAulas(contrato, modulo, label) {
   let html = `<div class="modulo-label">${label}</div><div class="aulas-row">`;
   for (let i = 1; i <= 4; i++) {
+    const key = `${contrato}_${modulo}_P${i}`;
     const s = getStatus(contrato, modulo, 'P' + i);
+    const dt = getDtAula(contrato, modulo, 'P' + i);
     const cls = s === 'C' ? 'presente' : s === 'F' ? 'falta' : '';
     const val = s || '—';
+    const dtHtml = dt ? `<div class="aula-dt">${dt}</div>` : '';
     html += `<div class="aula-btn ${cls}" onclick="ciclar('${contrato}','${modulo}','P${i}')">
       <div class="aula-num">Aula ${i}</div>
       <div class="aula-val">${val}</div>
+      ${dtHtml}
     </div>`;
   }
   html += `</div>`;
@@ -293,8 +313,8 @@ function renderDetalhe() {
   document.getElementById('detalhe-card').innerHTML = `
     <div class="card-nome">${alunoAtual.nome}</div>
     <div class="card-contrato">Contrato ${c}</div>
-    ${renderAulas(c, 'PIEP_2026', 'PIEP — 4 aulas')}
-    ${renderAulas(c, 'EMP_2026', 'Empregabilidade — 4 aulas')}
+    ${renderAulas(c, 'PIEP', 'PIEP — 4 aulas')}
+    ${renderAulas(c, 'EMP', 'Empregabilidade — 4 aulas')}
     <div class="hint">Toque para alternar: — → C (presente) → F (falta) → —</div>`;
 }
 
@@ -317,10 +337,11 @@ async function salvarNovoAluno() {
 }
 
 function setTab(tab) {
-  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['busca','novo','historico'][i] === tab));
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['busca','novo','historico','auditoria'][i] === tab));
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
   if (tab === 'historico') carregarHistorico();
+  if (tab === 'auditoria') carregarAuditoria();
 }
 
 async function carregarHistorico() {
@@ -339,6 +360,25 @@ async function carregarHistorico() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function carregarAuditoria() {
+  const el = document.getElementById('auditoria-card');
+  el.innerHTML = '<div class="loading">Carregando...</div>';
+  const { data } = await sb.from('auditoria').select('*').order('momento', { ascending: false }).limit(100);
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">Nenhuma alteração registrada.</div>'; return; }
+  el.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text2)">Últimas 100 alterações</div>' +
+    data.map(r => {
+      const dt = new Date(r.momento).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const de = r.status_anterior ? `<span class="badge ${r.status_anterior==='C'?'badge-c':'badge-f'}">${r.status_anterior}</span> → ` : 'Novo → ';
+      const para = `<span class="badge ${r.status_novo==='C'?'badge-c':'badge-f'}">${r.status_novo}</span>`;
+      return `<div class="hist-item">
+        <div class="hist-nome">${r.nome}</div>
+        <div class="hist-det">
+          ${r.modulo === 'PIEP' ? 'PIEP' : 'Empregabilidade'} · Aula ${r.aula.replace('P','')} · ${de}${para} · ${dt}
+        </div>
+      </div>`;
+    }).join('');
 }
 
 function toast(msg, erro) {
