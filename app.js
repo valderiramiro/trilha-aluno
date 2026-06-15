@@ -57,8 +57,19 @@ async function carregarProfessores() {
 }
 
 async function carregarAlunos() {
-  const { data } = await sb.from('alunos').select('contrato, nome').order('nome');
-  todosAlunos = data || [];
+  todosAlunos = [];
+  let pagina = 0;
+  const tamanho = 1000;
+  while (true) {
+    const { data: lote } = await sb.from('alunos')
+      .select('contrato, nome')
+      .order('nome')
+      .range(pagina * tamanho, (pagina + 1) * tamanho - 1);
+    if (!lote || !lote.length) break;
+    todosAlunos = [...todosAlunos, ...lote];
+    if (lote.length < tamanho) break;
+    pagina++;
+  }
 }
 
 // ==================== NAVEGAÇÃO ====================
