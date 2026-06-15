@@ -391,9 +391,14 @@ async function verDetalheAluno(contrato) {
   card.innerHTML = '<div class="loading">Carregando...</div>';
 
   const aluno = todosAlunos.find(a => a.contrato === contrato);
-  const { data: presencas } = await sb.from('presencas').select('*').eq('contrato', contrato);
+  const { data: presencas, error: errP } = await sb.from('presencas').select('*').eq('contrato', contrato);
   const { data: turmasAluno } = await sb.from('turma_alunos').select('*, turmas(nome, modulo)').eq('contrato', contrato);
-  const { data: chamadaPresencas } = await sb.from('chamada_presencas').select('*, chamadas(numero_aula, fechada, turmas(nome, modulo))').eq('contrato', contrato);
+  const { data: chamadaPresencas } = await sb.from('chamada_presencas')
+    .select('*, chamadas!inner(numero_aula, fechada, turma_id, turmas!inner(nome, modulo))')
+    .eq('contrato', contrato);
+  console.log('presencas:', presencas, errP);
+  console.log('turmasAluno:', turmasAluno);
+  console.log('chamadaPresencas:', chamadaPresencas);
 
   const podeEditar = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
   let html = `
@@ -418,7 +423,7 @@ async function verDetalheAluno(contrato) {
     html += `<div class="modulo-label">Chamadas registradas</div>`;
     const porTurma = {};
     chamadaPresencas.forEach(cp => {
-      const turmaKey = cp.chamadas?.turmas?.nome || 'Turma desconhecida';
+      const turmaKey = cp.chamadas?.turmas?.nome || cp.chamadas?.turma_id || 'Turma desconhecida';
       if (!porTurma[turmaKey]) porTurma[turmaKey] = [];
       porTurma[turmaKey].push(cp);
     });
