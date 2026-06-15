@@ -25,14 +25,12 @@ async function fazerLogin() {
   document.getElementById('topbar-perfil').textContent = data.perfil;
   document.getElementById('topbar-perfil').className = `badge-perfil badge-${data.perfil.toLowerCase()}`;
   // Mostrar menus conforme perfil
-  if (data.perfil === 'SEC') {
+  if (data.perfil === 'CRA') {
     document.getElementById('nav-usuarios').style.display = 'flex';
     document.getElementById('nav-auditoria').style.display = 'flex';
-    document.getElementById('btn-nova-turma').style.display = 'inline-flex';
   }
-  if (data.perfil === 'CRA') {
-    document.getElementById('nav-auditoria').style.display = 'flex';
-    document.getElementById('btn-nova-turma').style.display = 'none';
+  if (data.perfil === 'CRA' || data.perfil === 'SEC') {
+    document.getElementById('btn-nova-turma').style.display = 'inline-flex';
   }
   await carregarProfessores();
   await carregarAlunos();
@@ -99,7 +97,7 @@ async function carregarTurmas() {
     const pct = Math.min((qtd / 30) * 100, 100);
     const cheia = qtd >= 30;
     const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite', SABADO: 'Sábado' }[t.turno] || t.turno;
-    const canEdit = sessao.perfil !== 'PROF';
+    const canEdit = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
     return `<div class="card turma-card" onclick="abrirTurma('${t.id}')">
       <div class="turma-card-header">
         <div class="turma-nome">${t.nome}</div>
@@ -175,9 +173,9 @@ async function carregarChamada(aula) {
   const alunos = turmaAlunos || [];
   const presentes = Object.values(presMap).filter(p => p.status === 'C').length;
   const ausentes = Object.values(presMap).filter(p => p.status === 'F').length;
-  const bloqueado = chamada.fechada && sessao.perfil === 'PROF';
-  const podeReabrir = chamada.fechada && (sessao.perfil === 'CRA' || sessao.perfil === 'SEC');
-  const canAddRemove = sessao.perfil !== 'PROF';
+  const bloqueado = chamada.fechada && sessao.perfil !== 'CRA';
+  const podeReabrir = chamada.fechada && sessao.perfil === 'CRA';
+  const canAddRemove = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
   let html = `<div class="card">`;
   if (chamada.fechada) {
     html += `<div class="chamada-fechada-banner">🔒 Chamada fechada em ${new Date(chamada.fechada_em).toLocaleString('pt-BR')} por ${chamada.fechada_por}</div>`;
@@ -343,11 +341,24 @@ async function salvarEdicaoAluno() {
   const nome = document.getElementById('edit-aluno-nome').value.trim();
   const contrato = document.getElementById('edit-aluno-contrato').value.trim();
   if (!nome || !contrato) { toast('Preencha todos os campos', true); return; }
-  await sb.from('turma_alunos').update({ nome, contrato }).eq('id', alunoEditando.id);
+  // Atualizar tabela alunos
   await sb.from('alunos').update({ nome }).eq('contrato', contrato);
+  // Atualizar turma_alunos se veio de dentro da turma
+  if (alunoEditando?.id) {
+    await sb.from('turma_alunos').update({ nome, contrato }).eq('id', alunoEditando.id);
+    fecharTodosModais();
+    await carregarChamada(aulaAtiva);
+  } else {
+    // Veio da busca — atualizar turma_alunos pelo contrato
+    await sb.from('turma_alunos').update({ nome }).eq('contrato', alunoEditando.contrato);
+    // Atualizar lista local
+    const idx = todosAlunos.findIndex(a => a.contrato === alunoEditando.contrato);
+    if (idx >= 0) todosAlunos[idx].nome = nome;
+    fecharTodosModais();
+    // Recarregar detalhe
+    await verDetalheAluno(contrato);
+  }
   toast('Aluno atualizado');
-  fecharTodosModais();
-  await carregarChamada(aulaAtiva);
 }
 
 async function removerAlunoDaTurma(id, nome) {
@@ -384,9 +395,15 @@ async function verDetalheAluno(contrato) {
   const { data: turmasAluno } = await sb.from('turma_alunos').select('*, turmas(nome, modulo)').eq('contrato', contrato);
   const { data: chamadaPresencas } = await sb.from('chamada_presencas').select('*, chamadas(numero_aula, fechada, turmas(nome, modulo))').eq('contrato', contrato);
 
+  const podeEditar = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
   let html = `
-    <div style="font-size:17px;font-weight:600;margin-bottom:4px">${aluno?.nome || contrato}</div>
-    <div style="font-size:13px;color:var(--text3);margin-bottom:1.25rem">Contrato ${contrato}</div>`;
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem">
+      <div>
+        <div style="font-size:17px;font-weight:600;margin-bottom:4px">${aluno?.nome || contrato}</div>
+        <div style="font-size:13px;color:var(--text3)">Contrato ${contrato}</div>
+      </div>
+      ${podeEditar ? `<button class="btn-secondary btn-sm" onclick="editarAlunoBusca('${contrato}','${(aluno?.nome||'').replace(/'/g,"\'")}')">Editar</button>` : ''}
+    </div>`;
 
   // Turmas vinculadas
   if (turmasAluno?.length) {
@@ -458,6 +475,13 @@ function voltarBusca() {
   document.getElementById('busca-resultados').style.display = 'block';
   document.getElementById('busca-input').style.display = 'block';
   document.getElementById('busca-detalhe').style.display = 'none';
+}
+
+function editarAlunoBusca(contrato, nome) {
+  alunoEditando = { id: null, contrato };
+  document.getElementById('edit-aluno-nome').value = nome;
+  document.getElementById('edit-aluno-contrato').value = contrato;
+  abrirModal('modal-editar-aluno');
 }
 
 // ==================== USUÁRIOS ====================
