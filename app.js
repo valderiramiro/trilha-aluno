@@ -378,28 +378,79 @@ async function verDetalheAluno(contrato) {
   det.style.display = 'block';
   const card = document.getElementById('busca-detalhe-card');
   card.innerHTML = '<div class="loading">Carregando...</div>';
+
   const aluno = todosAlunos.find(a => a.contrato === contrato);
   const { data: presencas } = await sb.from('presencas').select('*').eq('contrato', contrato);
   const { data: turmasAluno } = await sb.from('turma_alunos').select('*, turmas(nome, modulo)').eq('contrato', contrato);
-  let html = `<div style="font-size:17px;font-weight:600;margin-bottom:4px">${aluno?.nome || contrato}</div>
-    <div style="font-size:13px;color:var(--text3);margin-bottom:1rem">Contrato ${contrato}</div>`;
+  const { data: chamadaPresencas } = await sb.from('chamada_presencas').select('*, chamadas(numero_aula, fechada, turmas(nome, modulo))').eq('contrato', contrato);
+
+  let html = `
+    <div style="font-size:17px;font-weight:600;margin-bottom:4px">${aluno?.nome || contrato}</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:1.25rem">Contrato ${contrato}</div>`;
+
+  // Turmas vinculadas
   if (turmasAluno?.length) {
-    html += `<div class="modulo-label">Turmas</div>`;
-    html += turmasAluno.map(t => `<div style="font-size:13px;padding:4px 0">${t.turmas?.nome || '—'}</div>`).join('');
-  }
-  ['PIEP','EMP'].forEach(mod => {
-    const ps = (presencas || []).filter(p => p.modulo === mod);
-    if (!ps.length) return;
-    html += `<div class="modulo-label">${mod === 'EMP' ? 'Empregabilidade' : 'PIEP'}</div><div class="aulas-grid">`;
-    ['P1','P2','P3','P4'].forEach((aula, i) => {
-      const p = ps.find(x => x.aula === aula);
-      const cls = p?.status === 'C' ? 'presente' : p?.status === 'F' ? 'falta' : '';
-      const val = p?.status || '—';
-      const dt = p ? new Date(p.atualizado_em || p.criado_em).toLocaleDateString('pt-BR') : '';
-      html += `<div class="aula-box ${cls}"><div class="aula-num">Aula ${i+1}</div><div class="aula-val">${val}</div>${dt?`<div class="aula-dt">${dt}</div>`:''}</div>`;
-    });
+    html += `<div class="modulo-label">Turmas vinculadas</div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:1rem">`;
+    html += turmasAluno.map(t => `<div style="font-size:13px;padding:6px 10px;background:var(--bg);border-radius:var(--radius);border:0.5px solid var(--border)">${t.turmas?.nome || '—'} <span class="badge badge-${(t.turmas?.modulo||'').toLowerCase()}">${t.turmas?.modulo||''}</span></div>`).join('');
     html += `</div>`;
-  });
+  }
+
+  // Presenças por chamada (novo sistema)
+  if (chamadaPresencas?.length) {
+    html += `<div class="modulo-label">Chamadas registradas</div>`;
+    const porTurma = {};
+    chamadaPresencas.forEach(cp => {
+      const turmaKey = cp.chamadas?.turmas?.nome || 'Turma desconhecida';
+      if (!porTurma[turmaKey]) porTurma[turmaKey] = [];
+      porTurma[turmaKey].push(cp);
+    });
+    Object.entries(porTurma).forEach(([turma, cps]) => {
+      html += `<div style="font-size:13px;font-weight:600;margin:8px 0 6px;color:var(--text2)">${turma}</div>`;
+      html += `<div class="aulas-grid">`;
+      [1,2,3,4].forEach(n => {
+        const cp = cps.find(x => x.chamadas?.numero_aula === n);
+        const cls = cp?.status === 'C' ? 'presente' : cp?.status === 'F' ? 'falta' : '';
+        const val = cp?.status || '—';
+        const dt = cp ? new Date(cp.lancado_em).toLocaleDateString('pt-BR') : '';
+        html += `<div class="aula-box ${cls}">
+          <div class="aula-num">Aula ${n}</div>
+          <div class="aula-val">${val}</div>
+          ${dt ? `<div class="aula-dt">${dt}</div>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    });
+  }
+
+  // Presenças legado (tabela presencas antiga)
+  const temLegado = (presencas || []).length > 0;
+  if (temLegado) {
+    html += `<div class="modulo-label" style="margin-top:1rem">Histórico (dados anteriores)</div>`;
+    ['PIEP','EMP'].forEach(mod => {
+      const ps = (presencas || []).filter(p => p.modulo === mod);
+      if (!ps.length) return;
+      html += `<div style="font-size:12px;font-weight:600;color:var(--text3);margin:8px 0 4px">${mod === 'EMP' ? 'Empregabilidade' : 'PIEP'}</div>`;
+      html += `<div class="aulas-grid">`;
+      ['P1','P2','P3','P4'].forEach((aula, i) => {
+        const p = ps.find(x => x.aula === aula);
+        const cls = p?.status === 'C' ? 'presente' : p?.status === 'F' ? 'falta' : '';
+        const val = p?.status || '—';
+        const dt = p ? new Date(p.atualizado_em || p.criado_em).toLocaleDateString('pt-BR') : '';
+        html += `<div class="aula-box ${cls}">
+          <div class="aula-num">Aula ${i+1}</div>
+          <div class="aula-val">${val}</div>
+          ${dt ? `<div class="aula-dt">${dt}</div>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    });
+  }
+
+  if (!turmasAluno?.length && !chamadaPresencas?.length && !temLegado) {
+    html += `<div class="empty">Nenhum dado encontrado para este aluno.</div>`;
+  }
+
   card.innerHTML = html;
 }
 
