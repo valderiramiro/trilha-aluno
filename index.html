@@ -3,89 +3,268 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Trilha do Aluno — Chamada</title>
+<title>CEBRAC — Sistema de Chamadas</title>
 <link rel="stylesheet" href="style.css">
 </head>
-</head>
 <body>
-<div class="app">
-  <div class="header">
-    <div class="header-icon">
-      <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
-    </div>
-    <div style="flex:1">
-      <h1>Trilha do Aluno</h1>
-      <p>Sistema de chamada — CEBRAC</p>
-    </div>
-    <div style="font-size:12px;color:var(--text3);text-align:right">
-      <span id="usuario-logado" style="font-weight:600;color:var(--orange)"></span>
-      <br><span onclick="fazerLogout()" style="cursor:pointer;text-decoration:underline">Sair</span>
-    </div>
-  </div>
 
-  <div id="pin-screen" class="pin-screen" style="display:none;">
-    <h2>Trilha do Aluno</h2>
-    <p>Informe seu usuário e senha para acessar</p>
-    <input type="text" class="pin-input no-icon" id="usuario-input" placeholder="Usuário" maxlength="10" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')document.getElementById('pin-input').focus()" />
-    <input type="password" class="pin-input no-icon" id="pin-input" placeholder="Senha" maxlength="20" onkeydown="if(event.key==='Enter')verificarPin()" />
-    <button class="btn-primary" style="width:200px" onclick="verificarPin()">Entrar</button>
-  </div>
-
-  <div id="app-content" style="display:none;">
-    <div class="status-bar" id="status-bar"></div>
-    <div class="tabs">
-      <button class="tab active" onclick="setTab('busca')">Buscar</button>
-      <button class="tab" onclick="setTab('novo')">Novo aluno</button>
-      <button class="tab" onclick="setTab('historico')">Histórico</button>
-      <button class="tab" onclick="setTab('auditoria')">Auditoria</button>
-    </div>
-
-    <div id="sec-busca" class="section active">
-      <div id="busca-lista">
-        <div class="search-wrap">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" id="search-input" placeholder="Nome ou número do contrato..." oninput="filtrar()" autocomplete="off" />
-        </div>
-        <div class="results" id="results"></div>
+<!-- LOGIN -->
+<div id="login-screen" class="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+          <rect x="9" y="3" width="6" height="4" rx="1"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
       </div>
-      <div id="busca-detalhe" style="display:none;">
-        <button class="btn-back" onclick="voltarLista()">
-          <svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-          Voltar
-        </button>
-        <div class="card" id="detalhe-card"></div>
+      <div>
+        <h1>CEBRAC</h1>
+        <p>Sistema de Chamadas</p>
       </div>
     </div>
-
-    <div id="sec-novo" class="section">
-      <div class="card">
-        <div class="form-group">
-          <label>Nome completo</label>
-          <input type="text" class="no-icon" id="novo-nome" placeholder="Ex: João Silva Santos" />
-        </div>
-        <div class="form-group">
-          <label>Número do contrato</label>
-          <input type="text" class="no-icon" id="novo-contrato" placeholder="Ex: 38200" />
-        </div>
-        <button class="btn-primary" id="btn-salvar-novo" onclick="salvarNovoAluno()">Salvar aluno</button>
-      </div>
+    <div class="form-group">
+      <label>Usuário</label>
+      <input type="text" id="login-usuario" placeholder="Ex: VALDERI" autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()">
     </div>
-
-    <div id="sec-historico" class="section">
-      <div class="card" id="historico-card">
-        <div class="loading">Carregando...</div>
-      </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="login-senha" placeholder="Digite sua senha" onkeydown="if(event.key==='Enter')fazerLogin()">
     </div>
-
-    <div id="sec-auditoria" class="section">
-      <div class="card" id="auditoria-card">
-        <div class="loading">Carregando...</div>
-      </div>
-    </div>
+    <button class="btn-primary" onclick="fazerLogin()">Entrar</button>
   </div>
 </div>
 
+<!-- APP -->
+<div id="app" style="display:none">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo-mini">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+          <rect x="9" y="3" width="6" height="4" rx="1"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <span class="topbar-title">CEBRAC</span>
+    </div>
+    <div class="topbar-right">
+      <span id="topbar-usuario"></span>
+      <span id="topbar-perfil" class="badge-perfil"></span>
+      <button class="btn-logout" onclick="fazerLogout()">Sair</button>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="nav" id="nav">
+    <button class="nav-btn active" onclick="setView('turmas')" id="nav-turmas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Turmas
+    </button>
+    <button class="nav-btn" onclick="setView('busca')" id="nav-busca">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Buscar Aluno
+    </button>
+    <button class="nav-btn" id="nav-usuarios" onclick="setView('usuarios')" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      Usuários
+    </button>
+    <button class="nav-btn" id="nav-auditoria" onclick="setView('auditoria')" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Auditoria
+    </button>
+  </div>
+
+  <!-- VIEWS -->
+  <div class="content">
+
+    <!-- VIEW: TURMAS -->
+    <div id="view-turmas" class="view active">
+      <div class="view-header">
+        <h2>Turmas</h2>
+        <button class="btn-primary btn-sm" id="btn-nova-turma" onclick="abrirModalTurma()" style="display:none">+ Nova Turma</button>
+      </div>
+      <div id="turmas-stats" class="stats-row"></div>
+      <div id="turmas-lista" class="lista-cards"></div>
+    </div>
+
+    <!-- VIEW: CHAMADA -->
+    <div id="view-chamada" class="view">
+      <div class="view-header">
+        <button class="btn-back" onclick="voltarTurmas()">← Voltar</button>
+        <div>
+          <h2 id="chamada-turma-nome"></h2>
+          <span id="chamada-turma-info" class="sub"></span>
+        </div>
+      </div>
+      <div id="chamada-aulas" class="aulas-tabs"></div>
+      <div id="chamada-content"></div>
+    </div>
+
+    <!-- VIEW: BUSCA -->
+    <div id="view-busca" class="view">
+      <div class="view-header"><h2>Buscar Aluno</h2></div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="busca-input" placeholder="Nome ou contrato..." oninput="buscarAluno()" autocomplete="off">
+      </div>
+      <div id="busca-resultados"></div>
+      <div id="busca-detalhe" style="display:none">
+        <button class="btn-back" onclick="voltarBusca()">← Voltar</button>
+        <div class="card" id="busca-detalhe-card"></div>
+      </div>
+    </div>
+
+    <!-- VIEW: USUARIOS -->
+    <div id="view-usuarios" class="view">
+      <div class="view-header">
+        <h2>Usuários</h2>
+        <button class="btn-primary btn-sm" onclick="abrirModalUsuario()">+ Novo Usuário</button>
+      </div>
+      <div id="usuarios-lista" class="lista-cards"></div>
+    </div>
+
+    <!-- VIEW: AUDITORIA -->
+    <div id="view-auditoria" class="view">
+      <div class="view-header"><h2>Auditoria</h2></div>
+      <div class="card" id="auditoria-lista"><div class="loading">Carregando...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAIS -->
+<div id="modal-overlay" class="modal-overlay" onclick="fecharModal(event)">
+
+  <!-- Modal Nova Turma -->
+  <div class="modal" id="modal-turma">
+    <h3>Nova Turma</h3>
+    <div class="form-group">
+      <label>Módulo</label>
+      <select id="turma-modulo" onchange="gerarNomeTurma()">
+        <option value="PIEP">PIEP</option>
+        <option value="EMP">Empregabilidade</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nº da turma</label>
+        <input type="number" id="turma-numero" min="1" max="99" value="1" oninput="gerarNomeTurma()">
+      </div>
+      <div class="form-group">
+        <label>Mês</label>
+        <select id="turma-mes" onchange="gerarNomeTurma()">
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+          <option value="3">Março</option><option value="4">Abril</option>
+          <option value="5">Maio</option><option value="6" selected>Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option>
+          <option value="9">Setembro</option><option value="10">Outubro</option>
+          <option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Turno</label>
+      <select id="turma-turno" onchange="gerarNomeTurma()">
+        <option value="MANHA">Manhã</option>
+        <option value="TARDE">Tarde</option>
+        <option value="NOITE">Noite</option>
+        <option value="SABADO">Sábado</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Professor</label>
+      <select id="turma-professor" onchange="gerarNomeTurma()"></select>
+    </div>
+    <div class="form-group">
+      <label>Nome da turma (gerado automaticamente)</label>
+      <input type="text" id="turma-nome" readonly style="background:var(--bg);font-weight:600">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="fecharTodosModais()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarTurma()">Criar Turma</button>
+    </div>
+  </div>
+
+  <!-- Modal Editar Turma -->
+  <div class="modal" id="modal-editar-turma">
+    <h3>Editar Turma</h3>
+    <div class="form-group">
+      <label>Nome da turma</label>
+      <input type="text" id="edit-turma-nome">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="fecharTodosModais()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEdicaoTurma()">Salvar</button>
+    </div>
+  </div>
+
+  <!-- Modal Editar Aluno -->
+  <div class="modal" id="modal-editar-aluno">
+    <h3>Editar Aluno</h3>
+    <div class="form-group">
+      <label>Nome</label>
+      <input type="text" id="edit-aluno-nome">
+    </div>
+    <div class="form-group">
+      <label>Contrato</label>
+      <input type="text" id="edit-aluno-contrato">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="fecharTodosModais()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEdicaoAluno()">Salvar</button>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Aluno à Turma -->
+  <div class="modal" id="modal-add-aluno">
+    <h3>Adicionar Aluno</h3>
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="add-aluno-busca" placeholder="Buscar por nome ou contrato..." oninput="buscarAlunoModal()" autocomplete="off">
+    </div>
+    <div id="add-aluno-resultados" class="modal-lista"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="fecharTodosModais()">Fechar</button>
+    </div>
+  </div>
+
+  <!-- Modal Novo Usuário -->
+  <div class="modal" id="modal-usuario">
+    <h3 id="modal-usuario-titulo">Novo Usuário</h3>
+    <div class="form-group">
+      <label>Nome completo</label>
+      <input type="text" id="usuario-nome" placeholder="Ex: Dieisi Souza">
+    </div>
+    <div class="form-group">
+      <label>Usuário (login)</label>
+      <input type="text" id="usuario-login" placeholder="Ex: DIEISI" style="text-transform:uppercase">
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="text" id="usuario-senha" placeholder="Ex: dieisi@26">
+    </div>
+    <div class="form-group">
+      <label>Perfil</label>
+      <select id="usuario-perfil">
+        <option value="PROF">Professor</option>
+        <option value="CRA">CRA</option>
+        <option value="SEC">Secretaria</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="fecharTodosModais()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarUsuario()">Salvar</button>
+    </div>
+  </div>
+
+</div>
+
 <div class="toast" id="toast"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 </body>
