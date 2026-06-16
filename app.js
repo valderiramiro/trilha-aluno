@@ -27,6 +27,7 @@ async function fazerLogin() {
   // Resetar todos os elementos opcionais
   document.getElementById('nav-usuarios').style.display = 'none';
   document.getElementById('nav-auditoria').style.display = 'none';
+  document.getElementById('nav-alunos').style.display = 'none';
   document.getElementById('btn-nova-turma').style.display = 'none';
 
   // CRA — acesso total
@@ -35,9 +36,14 @@ async function fazerLogin() {
     document.getElementById('nav-auditoria').style.display = 'flex';
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
   }
-  // SEC — criar turma e editar, mas sem usuários e sem auditoria
+  // SEC — criar turma, editar e gerenciar alunos
   if (data.perfil === 'SEC') {
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
+    document.getElementById('nav-alunos').style.display = 'flex';
+  }
+  // CRA também vê aba alunos
+  if (data.perfil === 'CRA') {
+    document.getElementById('nav-alunos').style.display = 'flex';
   }
   await carregarProfessores();
   await carregarAlunos();
@@ -83,12 +89,13 @@ async function carregarAlunos() {
 function setView(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-' + view).classList.add('active');
+  document.getElementById('view-' + view)?.classList.add('active');
   const navBtn = document.getElementById('nav-' + view);
   if (navBtn) navBtn.classList.add('active');
   if (view === 'turmas') carregarTurmas();
   if (view === 'usuarios') carregarUsuarios();
   if (view === 'auditoria') carregarAuditoria();
+  if (view === 'alunos') renderAlunos();
 }
 
 // ==================== TURMAS ====================
@@ -388,6 +395,70 @@ async function removerAlunoDaTurma(id, nome) {
   await sb.from('turma_alunos').delete().eq('id', id);
   toast(`${nome} removido`);
   await carregarChamada(aulaAtiva);
+}
+
+// ==================== GESTÃO DE ALUNOS ====================
+let alunosFiltrados = [];
+
+function renderAlunos() {
+  alunosFiltrados = [...todosAlunos];
+  document.getElementById('alunos-total').textContent = `(${todosAlunos.length} alunos)`;
+  document.getElementById('alunos-busca-input').value = '';
+  exibirListaAlunos(alunosFiltrados.slice(0, 50));
+}
+
+function filtrarAlunos() {
+  const q = normalizar(document.getElementById('alunos-busca-input').value.trim());
+  if (q.length < 2) {
+    exibirListaAlunos(todosAlunos.slice(0, 50));
+    return;
+  }
+  alunosFiltrados = todosAlunos.filter(a => normalizar(a.nome).includes(q) || a.contrato.includes(q));
+  exibirListaAlunos(alunosFiltrados.slice(0, 100));
+}
+
+function exibirListaAlunos(lista) {
+  const el = document.getElementById('alunos-lista');
+  if (!lista.length) { el.innerHTML = '<div class="empty">Nenhum aluno encontrado</div>'; return; }
+  el.innerHTML = lista.map(a => `
+    <div class="result-item">
+      <div>
+        <div class="result-nome">${a.nome}</div>
+        <div class="result-sub">Contrato ${a.contrato}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-icon" onclick="editarAlunoGlobal('${a.contrato}','${a.nome.replace(/'/g,"\'")}')">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirModalNovoAluno() {
+  document.getElementById('novo-aluno-nome').value = '';
+  document.getElementById('novo-aluno-contrato').value = '';
+  abrirModal('modal-novo-aluno');
+}
+
+async function salvarNovoAluno() {
+  const nome = document.getElementById('novo-aluno-nome').value.trim();
+  const contrato = document.getElementById('novo-aluno-contrato').value.trim();
+  if (!nome || !contrato) { toast('Preencha nome e contrato', true); return; }
+  if (todosAlunos.find(a => a.contrato === contrato)) { toast('Contrato já cadastrado', true); return; }
+  const { error } = await sb.from('alunos').insert({ contrato, nome, ano: '2026' });
+  if (error) { toast('Erro ao salvar', true); return; }
+  todosAlunos.push({ contrato, nome });
+  todosAlunos.sort((a, b) => a.nome.localeCompare(b.nome));
+  toast(`${nome} cadastrado`, false, true);
+  fecharTodosModais();
+  renderAlunos();
+}
+
+function editarAlunoGlobal(contrato, nome) {
+  alunoEditando = { id: null, contrato };
+  document.getElementById('edit-aluno-nome').value = nome;
+  document.getElementById('edit-aluno-contrato').value = contrato;
+  abrirModal('modal-editar-aluno');
 }
 
 // ==================== BUSCA ALUNO ====================
