@@ -121,7 +121,7 @@ async function carregarTurmas() {
     const qtd = t.turma_alunos[0]?.count || 0;
     const pct = Math.min((qtd / 30) * 100, 100);
     const cheia = qtd >= 30;
-    const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite', SABADO: 'Sábado' }[t.turno] || t.turno;
+    const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }[t.turno] || t.turno;
     const canEdit = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
     return `<div class="card turma-card" onclick="abrirTurma('${t.id}')">
       <div class="turma-card-header">
@@ -149,7 +149,7 @@ async function abrirTurma(turmaId) {
   const { data: turma } = await sb.from('turmas').select('*').eq('id', turmaId).single();
   turmaSelecionada = turma;
   document.getElementById('chamada-turma-nome').textContent = turma.nome;
-  const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite', SABADO: 'Sábado' }[turma.turno];
+  const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }[turma.turno] || turma.turno;
   const horario = turma.hora_inicio ? ` · ${turma.hora_inicio}${turma.hora_fim?' – '+turma.hora_fim:''}` : '';
   document.getElementById('chamada-turma-info').textContent = `${turma.modulo} · ${turno} · Prof. ${turma.professor_nome}${horario}`;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -170,8 +170,9 @@ async function renderAulasTabs() {
   tabs.innerHTML = [1,2,3,4].map(n => {
     const ch = chamadas?.find(c => c.numero_aula === n);
     const fechada = ch?.fechada;
+    const dt = ch?.data_aula ? new Date(ch.data_aula + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : '';
     return `<button class="aula-tab ${n===aulaAtiva?'active':''} ${fechada?'fechada':''}" onclick="selecionarAula(${n})" id="tab-aula-${n}">
-      Aula ${n}${fechada ? ' 🔒' : ''}
+      Aula ${n}${dt ? ' · ' + dt : ''}${fechada ? ' 🔒' : ''}
     </button>`;
   }).join('');
 }
@@ -295,12 +296,27 @@ async function salvarTurma() {
   const turno = document.getElementById('turma-turno').value;
   const hora_inicio = document.getElementById('turma-hora-inicio')?.value || null;
   const hora_fim = document.getElementById('turma-hora-fim')?.value || null;
+  const data_aula1 = document.getElementById('turma-data-aula1')?.value || null;
+  const data_aula2 = document.getElementById('turma-data-aula2')?.value || null;
+  const data_aula3 = document.getElementById('turma-data-aula3')?.value || null;
+  const data_aula4 = document.getElementById('turma-data-aula4')?.value || null;
   const profSel = document.getElementById('turma-professor');
   const professor_id = profSel.value;
   const professor_nome = profSel.options[profSel.selectedIndex].getAttribute('data-nome');
   if (!nome) { toast('Nome inválido', true); return; }
-  const { error } = await sb.from('turmas').insert({ nome, modulo, numero, mes, turno, hora_inicio, hora_fim, professor_id, professor_nome, vagas: 30, criado_por: sessao.usuario });
+  const { data: turmaCriada, error } = await sb.from('turmas').insert({
+    nome, modulo, numero, mes, turno, hora_inicio, hora_fim,
+    professor_id, professor_nome, vagas: 30, criado_por: sessao.usuario
+  }).select().single();
   if (error) { toast('Erro: ' + (error.message.includes('unique') ? 'Turma já existe' : error.message), true); return; }
+  // Criar chamadas com as datas definidas
+  const datas = [data_aula1, data_aula2, data_aula3, data_aula4];
+  const chamadas = datas.map((d, i) => ({
+    turma_id: turmaCriada.id,
+    numero_aula: i + 1,
+    data_aula: d || new Date().toISOString().split('T')[0]
+  }));
+  await sb.from('chamadas').insert(chamadas);
   toast('Turma criada com sucesso', false, true);
   fecharTodosModais();
   carregarTurmas();
