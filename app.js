@@ -322,17 +322,43 @@ async function salvarTurma() {
   carregarTurmas();
 }
 
-function editarTurma(id, nome) {
+async function editarTurma(id) {
   turmaEditando = id;
-  document.getElementById('edit-turma-nome').value = nome;
+  // Buscar dados completos da turma
+  const { data: t } = await sb.from('turmas').select('*').eq('id', id).single();
+  const { data: chamadas } = await sb.from('chamadas').select('*').eq('turma_id', id).order('numero_aula');
+  document.getElementById('edit-turma-nome').value = t.nome || '';
+  document.getElementById('edit-turma-hora-inicio').value = t.hora_inicio || '';
+  document.getElementById('edit-turma-hora-fim').value = t.hora_fim || '';
+  // Preencher datas das aulas
+  [1,2,3,4].forEach(n => {
+    const ch = chamadas?.find(c => c.numero_aula === n);
+    document.getElementById(`edit-turma-data${n}`).value = ch?.data_aula || '';
+  });
   abrirModal('modal-editar-turma');
 }
 
 async function salvarEdicaoTurma() {
   const nome = document.getElementById('edit-turma-nome').value.trim();
+  const hora_inicio = document.getElementById('edit-turma-hora-inicio').value || null;
+  const hora_fim = document.getElementById('edit-turma-hora-fim').value || null;
   if (!nome) { toast('Nome inválido', true); return; }
-  await sb.from('turmas').update({ nome }).eq('id', turmaEditando);
-  toast('Turma atualizada');
+  // Atualizar turma
+  await sb.from('turmas').update({ nome, hora_inicio, hora_fim }).eq('id', turmaEditando);
+  // Atualizar datas das chamadas
+  for (let n = 1; n <= 4; n++) {
+    const data_aula = document.getElementById(`edit-turma-data${n}`).value || null;
+    if (data_aula) {
+      // Upsert na chamada — atualiza se existe, cria se não existe
+      const { data: ch } = await sb.from('chamadas').select('id').eq('turma_id', turmaEditando).eq('numero_aula', n).single();
+      if (ch) {
+        await sb.from('chamadas').update({ data_aula }).eq('id', ch.id);
+      } else {
+        await sb.from('chamadas').insert({ turma_id: turmaEditando, numero_aula: n, data_aula });
+      }
+    }
+  }
+  toast('Turma atualizada', false, true);
   fecharTodosModais();
   carregarTurmas();
 }

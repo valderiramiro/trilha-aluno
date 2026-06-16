@@ -243,6 +243,37 @@
       <label>Nome da turma</label>
       <input type="text" id="edit-turma-nome">
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Início</label>
+        <input type="time" id="edit-turma-hora-inicio">
+      </div>
+      <div class="form-group">
+        <label>Término</label>
+        <input type="time" id="edit-turma-hora-fim">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Datas das aulas</label>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:var(--text2);min-width:50px">Aula 1</span>
+          <input type="date" id="edit-turma-data1" style="flex:1;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--surface);color:var(--text)">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:var(--text2);min-width:50px">Aula 2</span>
+          <input type="date" id="edit-turma-data2" style="flex:1;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--surface);color:var(--text)">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:var(--text2);min-width:50px">Aula 3</span>
+          <input type="date" id="edit-turma-data3" style="flex:1;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--surface);color:var(--text)">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:var(--text2);min-width:50px">Aula 4</span>
+          <input type="date" id="edit-turma-data4" style="flex:1;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:14px;background:var(--surface);color:var(--text)">
+        </div>
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="btn-secondary" onclick="fecharTodosModais()">Cancelar</button>
       <button class="btn-primary" onclick="salvarEdicaoTurma()">Salvar</button>
