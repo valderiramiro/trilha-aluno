@@ -32,6 +32,7 @@ async function fazerLogin() {
   if (data.perfil === 'CRA' || data.perfil === 'SEC') {
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
   }
+  // SEC vê nav-busca normalmente, não precisa ajuste
   await carregarProfessores();
   await carregarAlunos();
   setView('turmas');
@@ -120,6 +121,7 @@ async function carregarTurmas() {
         <span class="badge badge-${t.modulo.toLowerCase()}">${t.modulo}</span>
         <span class="badge badge-${t.turno.toLowerCase()}">${turno}</span>
         <span class="badge badge-prof">${t.professor_nome}</span>
+        ${t.hora_inicio ? `<span style="font-size:12px;color:var(--text2)">🕐 ${t.hora_inicio}${t.hora_fim?' – '+t.hora_fim:''}</span>` : ''}
       </div>
       <div class="turma-vagas" style="margin-top:8px">
         ${qtd}/${30} alunos
@@ -135,7 +137,8 @@ async function abrirTurma(turmaId) {
   turmaSelecionada = turma;
   document.getElementById('chamada-turma-nome').textContent = turma.nome;
   const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite', SABADO: 'Sábado' }[turma.turno];
-  document.getElementById('chamada-turma-info').textContent = `${turma.modulo} · ${turno} · Prof. ${turma.professor_nome}`;
+  const horario = turma.hora_inicio ? ` · ${turma.hora_inicio}${turma.hora_fim?' – '+turma.hora_fim:''}` : '';
+  document.getElementById('chamada-turma-info').textContent = `${turma.modulo} · ${turno} · Prof. ${turma.professor_nome}${horario}`;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-chamada').classList.add('active');
   aulaAtiva = 1;
@@ -184,7 +187,7 @@ async function carregarChamada(aula) {
   const alunos = turmaAlunos || [];
   const presentes = Object.values(presMap).filter(p => p.status === 'C').length;
   const ausentes = Object.values(presMap).filter(p => p.status === 'F').length;
-  const bloqueado = chamada.fechada && sessao.perfil !== 'CRA';
+  const bloqueado = chamada.fechada && sessao.perfil === 'PROF';
   const podeReabrir = chamada.fechada && sessao.perfil === 'CRA';
   const canAddRemove = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
   let html = `<div class="card">`;
@@ -277,11 +280,13 @@ async function salvarTurma() {
   const numero = parseInt(document.getElementById('turma-numero').value);
   const mes = parseInt(document.getElementById('turma-mes').value);
   const turno = document.getElementById('turma-turno').value;
+  const hora_inicio = document.getElementById('turma-hora-inicio')?.value || null;
+  const hora_fim = document.getElementById('turma-hora-fim')?.value || null;
   const profSel = document.getElementById('turma-professor');
   const professor_id = profSel.value;
   const professor_nome = profSel.options[profSel.selectedIndex].getAttribute('data-nome');
   if (!nome) { toast('Nome inválido', true); return; }
-  const { error } = await sb.from('turmas').insert({ nome, modulo, numero, mes, turno, professor_id, professor_nome, vagas: 30, criado_por: sessao.usuario });
+  const { error } = await sb.from('turmas').insert({ nome, modulo, numero, mes, turno, hora_inicio, hora_fim, professor_id, professor_nome, vagas: 30, criado_por: sessao.usuario });
   if (error) { toast('Erro: ' + (error.message.includes('unique') ? 'Turma já existe' : error.message), true); return; }
   toast('Turma criada com sucesso', false, true);
   fecharTodosModais();
