@@ -24,15 +24,21 @@ async function fazerLogin() {
   document.getElementById('topbar-usuario').textContent = data.nome;
   document.getElementById('topbar-perfil').textContent = data.perfil;
   document.getElementById('topbar-perfil').className = `badge-perfil badge-${data.perfil.toLowerCase()}`;
-  // Mostrar menus conforme perfil
+  // Resetar todos os elementos opcionais
+  document.getElementById('nav-usuarios').style.display = 'none';
+  document.getElementById('nav-auditoria').style.display = 'none';
+  document.getElementById('btn-nova-turma').style.display = 'none';
+
+  // CRA — acesso total
   if (data.perfil === 'CRA') {
     document.getElementById('nav-usuarios').style.display = 'flex';
     document.getElementById('nav-auditoria').style.display = 'flex';
-  }
-  if (data.perfil === 'CRA' || data.perfil === 'SEC') {
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
   }
-  // SEC vê nav-busca normalmente, não precisa ajuste
+  // SEC — criar turma e editar, mas sem usuários e sem auditoria
+  if (data.perfil === 'SEC') {
+    document.getElementById('btn-nova-turma').style.display = 'inline-flex';
+  }
   await carregarProfessores();
   await carregarAlunos();
   setView('turmas');
