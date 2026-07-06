@@ -248,13 +248,50 @@ async function carregarChamada(aula) {
 }
 
 async function lancarPresenca(chamadaId, contrato, nome, status) {
-  await sb.from('chamada_presencas').upsert(
-    { chamada_id: chamadaId, turma_id: turmaSelecionada.id, contrato, nome, status, lancado_por: sessao.usuario, lancado_em: new Date().toISOString() },
-    { onConflict: 'chamada_id,contrato' }
-  );
-  // Registrar na auditoria
-  await sb.from('auditoria').insert({ contrato, nome, modulo: turmaSelecionada.modulo, aula: `Aula ${aulaAtiva}`, status_anterior: null, status_novo: status, usuario: sessao.usuario });
-  await carregarChamada(aulaAtiva);
+  // Buscar status anterior
+  const { data: anterior } = await sb.from('chamada_presencas')
+    .select('status').eq('chamada_id', chamadaId).eq('contrato', contrato).single();
+  const statusAnterior = anterior?.status || null;
+
+  // Toggle: clicar no mesmo status remove
+  const novoStatus = statusAnterior === status ? null : status;
+
+  if (novoStatus) {
+    await sb.from('chamada_presencas').upsert(
+      { chamada_id: chamadaId, turma_id: turmaSelecionada.id, contrato, nome, status: novoStatus, lancado_por: sessao.usuario, lancado_em: new Date().toISOString() },
+      { onConflict: 'chamada_id,contrato' }
+    );
+  } else {
+    await sb.from('chamada_presencas').delete().eq('chamada_id', chamadaId).eq('contrato', contrato);
+  }
+
+  // Auditoria
+  await sb.from('auditoria').insert({ contrato, nome, modulo: turmaSelecionada.modulo, aula: `Aula ${aulaAtiva}`, status_anterior: statusAnterior, status_novo: novoStatus, usuario: sessao.usuario });
+
+  // Atualizar só os botões do aluno — sem recarregar a lista
+  const row = document.getElementById(`row-${contrato}`);
+  if (row) {
+    const btns = row.querySelectorAll('.btn-presenca');
+    btns[0].className = `btn-presenca ${novoStatus === 'C' ? 'ativo-c' : ''}`;
+    btns[1].className = `btn-presenca ${novoStatus === 'F' ? 'ativo-f' : ''}`;
+  }
+
+  // Atualizar contadores sem recarregar
+  atualizarContadores(chamadaId);
+}
+
+async function atualizarContadores(chamadaId) {
+  const { data } = await sb.from('chamada_presencas').select('status').eq('chamada_id', chamadaId);
+  const presentes = (data || []).filter(p => p.status === 'C').length;
+  const ausentes = (data || []).filter(p => p.status === 'F').length;
+  const total = document.querySelectorAll('.aluno-row').length;
+  const stats = document.querySelectorAll('.chamada-stat span');
+  if (stats.length >= 4) {
+    stats[0].textContent = total;
+    stats[1].textContent = presentes;
+    stats[2].textContent = ausentes;
+    stats[3].textContent = total - presentes - ausentes;
+  }
 }
 
 async function fecharChamada(chamadaId) {
