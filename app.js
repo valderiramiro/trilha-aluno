@@ -134,7 +134,7 @@ async function carregarTurmas() {
         <span class="badge badge-${t.modulo.toLowerCase()}">${t.modulo}</span>
         <span class="badge badge-${t.turno.toLowerCase()}">${turno}</span>
         <span class="badge badge-prof">${t.professor_nome}</span>
-        ${t.hora_inicio ? `<span style="font-size:12px;color:var(--text2)">🕐 ${t.hora_inicio}${t.hora_fim?' – '+t.hora_fim:''}</span>` : ''}
+        ${t.hora_inicio ? `<span style="font-size:12px;color:var(--text2)">🕐 ${t.hora_inicio.substring(0,5)}${t.hora_fim?' – '+t.hora_fim.substring(0,5):''}</span>` : ''}
       </div>
       <div class="turma-vagas" style="margin-top:8px">
         ${qtd}/${30} alunos
@@ -150,7 +150,9 @@ async function abrirTurma(turmaId) {
   turmaSelecionada = turma;
   document.getElementById('chamada-turma-nome').textContent = turma.nome;
   const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }[turma.turno] || turma.turno;
-  const horario = turma.hora_inicio ? ` · ${turma.hora_inicio}${turma.hora_fim?' – '+turma.hora_fim:''}` : '';
+  const hi = turma.hora_inicio ? turma.hora_inicio.substring(0,5) : '';
+  const hf = turma.hora_fim ? turma.hora_fim.substring(0,5) : '';
+  const horario = hi ? ` · ${hi}${hf?' – '+hf:''}` : '';
   document.getElementById('chamada-turma-info').textContent = `${turma.modulo} · ${turno} · Prof. ${turma.professor_nome}${horario}`;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-chamada').classList.add('active');
@@ -170,7 +172,13 @@ async function renderAulasTabs() {
   tabs.innerHTML = [1,2,3,4].map(n => {
     const ch = chamadas?.find(c => c.numero_aula === n);
     const fechada = ch?.fechada;
-    const dt = ch?.data_aula ? new Date(ch.data_aula + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : '';
+    let dt = '';
+    if (ch?.data_aula) {
+      try {
+        const d = new Date(ch.data_aula + 'T12:00:00');
+        if (!isNaN(d.getTime())) dt = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+      } catch(e) { dt = ''; }
+    }
     return `<button class="aula-tab ${n===aulaAtiva?'active':''} ${fechada?'fechada':''}" onclick="selecionarAula(${n})" id="tab-aula-${n}">
       Aula ${n}${dt ? ' · ' + dt : ''}${fechada ? ' 🔒' : ''}
     </button>`;
