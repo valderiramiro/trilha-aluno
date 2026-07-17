@@ -341,10 +341,15 @@ async function salvarTurma() {
   const turno = document.getElementById('turma-turno').value;
   const hora_inicio = document.getElementById('turma-hora-inicio')?.value || null;
   const hora_fim = document.getElementById('turma-hora-fim')?.value || null;
-  const data_aula1 = document.getElementById('turma-data-aula1')?.value || null;
-  const data_aula2 = document.getElementById('turma-data-aula2')?.value || null;
-  const data_aula3 = document.getElementById('turma-data-aula3')?.value || null;
-  const data_aula4 = document.getElementById('turma-data-aula4')?.value || null;
+  const validarData = d => {
+    if (!d) return null;
+    const ano = parseInt(d.split('-')[0]);
+    return (ano >= 2020 && ano <= 2099) ? d : null;
+  };
+  const data_aula1 = validarData(document.getElementById('turma-data-aula1')?.value);
+  const data_aula2 = validarData(document.getElementById('turma-data-aula2')?.value);
+  const data_aula3 = validarData(document.getElementById('turma-data-aula3')?.value);
+  const data_aula4 = validarData(document.getElementById('turma-data-aula4')?.value);
   const profSel = document.getElementById('turma-professor');
   const professor_id = profSel.value;
   const professor_nome = profSel.options[profSel.selectedIndex].getAttribute('data-nome');
@@ -392,7 +397,9 @@ async function salvarEdicaoTurma() {
   await sb.from('turmas').update({ nome, hora_inicio, hora_fim }).eq('id', turmaEditando);
   // Atualizar datas das chamadas
   for (let n = 1; n <= 4; n++) {
-    const data_aula = document.getElementById(`edit-turma-data${n}`).value || null;
+    const rawData = document.getElementById(`edit-turma-data${n}`).value;
+    const anoData = rawData ? parseInt(rawData.split('-')[0]) : 0;
+    const data_aula = (rawData && anoData >= 2020 && anoData <= 2099) ? rawData : null;
     if (data_aula) {
       // Upsert na chamada — atualiza se existe, cria se não existe
       const { data: ch } = await sb.from('chamadas').select('id').eq('turma_id', turmaEditando).eq('numero_aula', n).single();
