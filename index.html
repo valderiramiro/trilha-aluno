@@ -76,9 +76,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
       Usuários
     </button>
-    <button class="nav-btn" id="nav-arquivadas" onclick="setView('arquivadas')" style="display:none">
+    <button class="nav-btn" id="nav-concluídas" onclick="setView('concluídas')" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-      Arquivadas
+      Concluídas
     </button>
     <button class="nav-btn" id="nav-auditoria" onclick="setView('auditoria')" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -100,16 +100,16 @@
     </div>
 
     <!-- VIEW: CHAMADA ARQUIVADA (somente leitura) -->
-    <div id="view-chamada-arquivada" class="view">
+    <div id="view-chamada-concluída" class="view">
       <div class="view-header">
-        <button class="btn-back" onclick="voltarArquivadas()">← Voltar</button>
+        <button class="btn-back" onclick="voltarConcluídas()">← Voltar</button>
         <div>
-          <h2 id="arq-turma-nome"></h2>
-          <span id="arq-turma-info" class="sub"></span>
+          <h2 id="conc-turma-nome"></h2>
+          <span id="conc-turma-info" class="sub"></span>
         </div>
       </div>
-      <div id="arq-aulas-tabs" class="aulas-tabs"></div>
-      <div id="arq-chamada-content"></div>
+      <div id="conc-aulas-tabs" class="aulas-tabs"></div>
+      <div id="conc-chamada-content"></div>
     </div>
 
     <!-- VIEW: CHAMADA -->
@@ -153,12 +153,12 @@
     </div>
 
     <!-- VIEW: ARQUIVADAS -->
-    <div id="view-arquivadas" class="view">
+    <div id="view-concluídas" class="view">
       <div class="view-header">
-        <h2>Turmas Arquivadas</h2>
+        <h2>Turmas Concluídas</h2>
       </div>
-      <div id="arquivadas-stats" class="stats-row"></div>
-      <div id="arquivadas-lista" class="lista-cards"></div>
+      <div id="concluídas-stats" class="stats-row"></div>
+      <div id="concluídas-lista" class="lista-cards"></div>
     </div>
 
     <!-- VIEW: USUARIOS -->
