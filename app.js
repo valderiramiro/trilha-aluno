@@ -226,9 +226,9 @@ async function carregarConcluidas() {
     const podeDes = sessao.perfil === 'CRA';
     return `<div class="card" style="opacity:0.85">
       <div class="turma-card-header">
-        <div class="turma-nome" style="cursor:pointer" onclick="abrirTurmaConcluída('${t.id}')">${t.nome}</div>
+        <div class="turma-nome" style="cursor:pointer" onclick="abrirTurmaConcluida('${t.id}')">${t.nome}</div>
         <div class="turma-actions">
-          <button class="btn-secondary btn-sm" onclick="abrirTurmaConcluída('${t.id}')">Ver chamadas</button>
+          <button class="btn-secondary btn-sm" onclick="abrirTurmaConcluida('${t.id}')">Ver chamadas</button>
           ${podeDes ? `<button class="btn-primary btn-sm" onclick="desconcluirTurma('${t.id}','${t.nome.replace(/'/g,"\'")}')">Reativar</button>` : ''}
         </div>
       </div>
@@ -244,7 +244,7 @@ async function carregarConcluidas() {
   }).join('');
 }
 
-async function abrirTurmaConcluída(turmaId) {
+async function abrirTurmaConcluida(turmaId) {
   const { data: turma } = await sb.from('turmas').select('*').eq('id', turmaId).single();
   turmaSelecionada = turma;
   document.getElementById('conc-turma-nome').textContent = turma.nome;
@@ -256,16 +256,16 @@ async function abrirTurmaConcluída(turmaId) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-chamada-concluida').classList.add('active');
   aulaAtiva = 1;
-  await renderAulasTabsConcluída();
-  await carregarChamadaConcluída(1);
+  await renderAulasTabsConcluida();
+  await carregarChamadaConcluida(1);
 }
 
-function voltarConcluídas() {
+function voltarConcluidas() {
   turmaSelecionada = null;
   setView('concluidas');
 }
 
-async function renderAulasTabsConcluída() {
+async function renderAulasTabsConcluida() {
   const { data: chamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id);
   const tabs = document.getElementById('conc-aulas-tabs');
   tabs.innerHTML = [1,2,3,4].map(n => {
@@ -278,19 +278,19 @@ async function renderAulasTabsConcluída() {
         if (!isNaN(d.getTime())) dt = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
       } catch(e) {}
     }
-    return `<button class="aula-tab ${n===aulaAtiva?'active':''} ${fechada?'fechada':''}" onclick="selecionarAulaConcluída(${n})">
+    return `<button class="aula-tab ${n===aulaAtiva?'active':''} ${fechada?'fechada':''}" onclick="selecionarAulaConcluida(${n})">
       Aula ${n}${dt ? ' · ' + dt : ''}${fechada ? ' 🔒' : ''}
     </button>`;
   }).join('');
 }
 
-async function selecionarAulaConcluída(n) {
+async function selecionarAulaConcluida(n) {
   aulaAtiva = n;
   document.querySelectorAll('#conc-aulas-tabs .aula-tab').forEach((t,i) => t.classList.toggle('active', i+1 === n));
-  await carregarChamadaConcluída(n);
+  await carregarChamadaConcluida(n);
 }
 
-async function carregarChamadaConcluída(aula) {
+async function carregarChamadaConcluida(aula) {
   const content = document.getElementById('conc-chamada-content');
   content.innerHTML = '<div class="loading">Carregando...</div>';
   const { data: chamada } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id).eq('numero_aula', aula).single();
