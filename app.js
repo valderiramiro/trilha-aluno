@@ -28,7 +28,7 @@ async function fazerLogin() {
   document.getElementById('nav-usuarios').style.display = 'none';
   document.getElementById('nav-auditoria').style.display = 'none';
   document.getElementById('nav-alunos').style.display = 'none';
-  document.getElementById('nav-concluídas').style.display = 'none';
+  document.getElementById('nav-concluidas').style.display = 'none';
   document.getElementById('btn-nova-turma').style.display = 'none';
 
   // CRA — acesso total
@@ -37,13 +37,13 @@ async function fazerLogin() {
     document.getElementById('nav-auditoria').style.display = 'flex';
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
     document.getElementById('nav-alunos').style.display = 'flex';
-    document.getElementById('nav-concluídas').style.display = 'flex';
+    document.getElementById('nav-concluidas').style.display = 'flex';
   }
   // SEC — criar turma, editar e gerenciar alunos
   if (data.perfil === 'SEC') {
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
     document.getElementById('nav-alunos').style.display = 'flex';
-    document.getElementById('nav-concluídas').style.display = 'flex';
+    document.getElementById('nav-concluidas').style.display = 'flex';
   }
   await carregarProfessores();
   await carregarAlunos();
@@ -96,7 +96,7 @@ function setView(view) {
   if (view === 'usuarios') carregarUsuarios();
   if (view === 'auditoria') carregarAuditoria();
   if (view === 'alunos') renderAlunos();
-  if (view === 'concluídas') carregarConcluídas();
+  if (view === 'concluidas') carregarConcluidas();
 }
 
 // ==================== TURMAS ====================
@@ -173,7 +173,7 @@ async function concluirTurma(id, nome) {
   if (!confirm(`Concluir a turma "${nome}"?
 
 Ela ficará somente para consulta e não aparecerá mais na lista de turmas ativas.`)) return;
-  await sb.from('turmas').update({ ativa: false, concluída_por: sessao.usuario, concluída_em: new Date().toISOString() }).eq('id', id);
+  await sb.from('turmas').update({ ativa: false, concluida_por: sessao.usuario, concluida_em: new Date().toISOString() }).eq('id', id);
   toast('Turma concluída', false, true);
   carregarTurmas();
 }
@@ -182,26 +182,26 @@ async function desconcluirTurma(id, nome) {
   if (!confirm(`Desconcluir a turma "${nome}"?
 
 Ela voltará para a lista de turmas ativas.`)) return;
-  await sb.from('turmas').update({ ativa: true, concluída_por: null, concluída_em: null }).eq('id', id);
+  await sb.from('turmas').update({ ativa: true, concluida_por: null, concluida_em: null }).eq('id', id);
   toast('Turma desconcluída');
-  carregarConcluídas();
+  carregarConcluidas();
 }
 
-async function carregarConcluídas() {
-  const lista = document.getElementById('concluídas-lista');
+async function carregarConcluidas() {
+  const lista = document.getElementById('concluidas-lista');
   lista.innerHTML = '<div class="loading">Carregando...</div>';
   const { data: turmas } = await sb.from('turmas')
     .select('*, turma_alunos(count)')
     .eq('ativa', false)
-    .order('concluída_em', { ascending: false });
+    .order('concluida_em', { ascending: false });
 
   if (!turmas || !turmas.length) {
-    document.getElementById('concluídas-stats').innerHTML = '';
+    document.getElementById('concluidas-stats').innerHTML = '';
     lista.innerHTML = '<div class="card"><div class="empty">Nenhuma turma concluída.</div></div>';
     return;
   }
 
-  document.getElementById('concluídas-stats').innerHTML = `
+  document.getElementById('concluidas-stats').innerHTML = `
     <div class="stat-card"><div class="stat-num">${turmas.length}</div><div class="stat-label">Turmas concluídas</div></div>
     <div class="stat-card"><div class="stat-num">${turmas.reduce((s,t) => s + (t.turma_alunos[0]?.count || 0), 0)}</div><div class="stat-label">Total de alunos</div></div>`;
 
@@ -211,7 +211,7 @@ async function carregarConcluídas() {
     const hi = t.hora_inicio ? t.hora_inicio.substring(0,5) : '';
     const hf = t.hora_fim ? t.hora_fim.substring(0,5) : '';
     const horario = hi ? `🕐 ${hi}${hf?' – '+hf:''}` : '';
-    const concluídaEm = t.concluída_em ? new Date(t.concluída_em).toLocaleDateString('pt-BR') : '—';
+    const concluidaEm = t.concluida_em ? new Date(t.concluida_em).toLocaleDateString('pt-BR') : '—';
     const podeDes = sessao.perfil === 'CRA';
     return `<div class="card" style="opacity:0.85">
       <div class="turma-card-header">
@@ -226,7 +226,7 @@ async function carregarConcluídas() {
         <span class="badge badge-${t.turno.toLowerCase()}">${turno}</span>
         <span class="badge badge-prof">${t.professor_nome}</span>
         ${horario ? `<span style="font-size:12px;color:var(--text2)">${horario}</span>` : ''}
-        <span style="font-size:12px;color:var(--text3)">✅ Concluída em ${concluídaEm} por ${t.concluída_por || '—'}</span>
+        <span style="font-size:12px;color:var(--text3)">✅ Concluída em ${concluidaEm} por ${t.concluida_por || '—'}</span>
       </div>
       <div style="font-size:12px;color:var(--text3);margin-top:6px">${qtd} alunos</div>
     </div>`;
@@ -243,7 +243,7 @@ async function abrirTurmaConcluída(turmaId) {
   const horario = hi ? ` · ${hi}${hf?' – '+hf:''}` : '';
   document.getElementById('conc-turma-info').textContent = `${turma.modulo} · ${turno} · Prof. ${turma.professor_nome}${horario} · ✅ Concluída`;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-chamada-concluída').classList.add('active');
+  document.getElementById('view-chamada-concluida').classList.add('active');
   aulaAtiva = 1;
   await renderAulasTabsConcluída();
   await carregarChamadaConcluída(1);
@@ -251,7 +251,7 @@ async function abrirTurmaConcluída(turmaId) {
 
 function voltarConcluídas() {
   turmaSelecionada = null;
-  setView('concluídas');
+  setView('concluidas');
 }
 
 async function renderAulasTabsConcluída() {
