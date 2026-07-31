@@ -170,10 +170,21 @@ function voltarTurmas() {
 
 // ==================== ARQUIVAR / DESARQUIVAR ====================
 async function concluirTurma(id, nome) {
-  if (!confirm(`Concluir a turma "${nome}"?
-
-Ela ficará somente para consulta e não aparecerá mais na lista de turmas ativas.`)) return;
-  await sb.from('turmas').update({ ativa: false, concluida_por: sessao.usuario, concluida_em: new Date().toISOString() }).eq('id', id);
+  if (!confirm(`Concluir a turma "${nome}"?\n\nEla ficará somente para consulta e não aparecerá mais na lista de turmas ativas.`)) return;
+  const { data, error } = await sb.from('turmas')
+    .update({ ativa: false, concluida_por: sessao.usuario, concluida_em: new Date().toISOString() })
+    .eq('id', id)
+    .select();
+  if (error) {
+    toast('Erro: ' + error.message, true);
+    console.error('Erro concluirTurma:', error);
+    return;
+  }
+  if (!data || data.length === 0) {
+    toast('Sem permissão ou turma não encontrada', true);
+    console.error('Update sem efeito. ID:', id, 'Usuario:', sessao.usuario, 'Perfil:', sessao.perfil);
+    return;
+  }
   toast('Turma concluída', false, true);
   carregarTurmas();
 }
