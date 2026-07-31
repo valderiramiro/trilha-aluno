@@ -28,6 +28,7 @@ async function fazerLogin() {
   document.getElementById('nav-usuarios').style.display = 'none';
   document.getElementById('nav-auditoria').style.display = 'none';
   document.getElementById('nav-alunos').style.display = 'none';
+  document.getElementById('nav-arquivadas').style.display = 'none';
   document.getElementById('btn-nova-turma').style.display = 'none';
 
   // CRA — acesso total
@@ -35,15 +36,14 @@ async function fazerLogin() {
     document.getElementById('nav-usuarios').style.display = 'flex';
     document.getElementById('nav-auditoria').style.display = 'flex';
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
+    document.getElementById('nav-alunos').style.display = 'flex';
+    document.getElementById('nav-arquivadas').style.display = 'flex';
   }
   // SEC — criar turma, editar e gerenciar alunos
   if (data.perfil === 'SEC') {
     document.getElementById('btn-nova-turma').style.display = 'inline-flex';
     document.getElementById('nav-alunos').style.display = 'flex';
-  }
-  // CRA também vê aba alunos
-  if (data.perfil === 'CRA') {
-    document.getElementById('nav-alunos').style.display = 'flex';
+    document.getElementById('nav-arquivadas').style.display = 'flex';
   }
   await carregarProfessores();
   await carregarAlunos();
@@ -96,6 +96,7 @@ function setView(view) {
   if (view === 'usuarios') carregarUsuarios();
   if (view === 'auditoria') carregarAuditoria();
   if (view === 'alunos') renderAlunos();
+  if (view === 'arquivadas') carregarArquivadas();
 }
 
 // ==================== TURMAS ====================
@@ -127,7 +128,8 @@ async function carregarTurmas() {
       <div class="turma-card-header">
         <div class="turma-nome">${t.nome}</div>
         <div class="turma-actions" onclick="event.stopPropagation()">
-          ${canEdit ? `<button class="btn-icon" onclick="editarTurma('${t.id}','${t.nome.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : ''}
+          ${canEdit ? `<button class="btn-icon" onclick="editarTurma('${t.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : ''}
+          ${canEdit ? `<button class="btn-icon" title="Arquivar turma" onclick="event.stopPropagation();arquivarTurma('${t.id}','${t.nome.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>` : ''}
         </div>
       </div>
       <div class="turma-meta">
@@ -164,6 +166,169 @@ async function abrirTurma(turmaId) {
 function voltarTurmas() {
   turmaSelecionada = null;
   setView('turmas');
+}
+
+// ==================== ARQUIVAR / DESARQUIVAR ====================
+async function arquivarTurma(id, nome) {
+  if (!confirm(`Arquivar a turma "${nome}"?
+
+Ela ficará somente para consulta e não aparecerá mais na lista de turmas ativas.`)) return;
+  await sb.from('turmas').update({ ativa: false, arquivada_por: sessao.usuario, arquivada_em: new Date().toISOString() }).eq('id', id);
+  toast('Turma arquivada', false, true);
+  carregarTurmas();
+}
+
+async function desarquivarTurma(id, nome) {
+  if (!confirm(`Desarquivar a turma "${nome}"?
+
+Ela voltará para a lista de turmas ativas.`)) return;
+  await sb.from('turmas').update({ ativa: true, arquivada_por: null, arquivada_em: null }).eq('id', id);
+  toast('Turma desarquivada');
+  carregarArquivadas();
+}
+
+async function carregarArquivadas() {
+  const lista = document.getElementById('arquivadas-lista');
+  lista.innerHTML = '<div class="loading">Carregando...</div>';
+  const { data: turmas } = await sb.from('turmas')
+    .select('*, turma_alunos(count)')
+    .eq('ativa', false)
+    .order('arquivada_em', { ascending: false });
+
+  if (!turmas || !turmas.length) {
+    document.getElementById('arquivadas-stats').innerHTML = '';
+    lista.innerHTML = '<div class="card"><div class="empty">Nenhuma turma arquivada.</div></div>';
+    return;
+  }
+
+  document.getElementById('arquivadas-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${turmas.length}</div><div class="stat-label">Turmas arquivadas</div></div>
+    <div class="stat-card"><div class="stat-num">${turmas.reduce((s,t) => s + (t.turma_alunos[0]?.count || 0), 0)}</div><div class="stat-label">Total de alunos</div></div>`;
+
+  lista.innerHTML = turmas.map(t => {
+    const qtd = t.turma_alunos[0]?.count || 0;
+    const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }[t.turno] || t.turno;
+    const hi = t.hora_inicio ? t.hora_inicio.substring(0,5) : '';
+    const hf = t.hora_fim ? t.hora_fim.substring(0,5) : '';
+    const horario = hi ? `🕐 ${hi}${hf?' – '+hf:''}` : '';
+    const arquivadaEm = t.arquivada_em ? new Date(t.arquivada_em).toLocaleDateString('pt-BR') : '—';
+    const podeDes = sessao.perfil === 'CRA';
+    return `<div class="card" style="opacity:0.85">
+      <div class="turma-card-header">
+        <div class="turma-nome" style="cursor:pointer" onclick="abrirTurmaArquivada('${t.id}')">${t.nome}</div>
+        <div class="turma-actions">
+          <button class="btn-secondary btn-sm" onclick="abrirTurmaArquivada('${t.id}')">Ver chamadas</button>
+          ${podeDes ? `<button class="btn-primary btn-sm" onclick="desarquivarTurma('${t.id}','${t.nome.replace(/'/g,"\'")}')">Reativar</button>` : ''}
+        </div>
+      </div>
+      <div class="turma-meta" style="margin-top:6px">
+        <span class="badge badge-${t.modulo.toLowerCase()}">${t.modulo}</span>
+        <span class="badge badge-${t.turno.toLowerCase()}">${turno}</span>
+        <span class="badge badge-prof">${t.professor_nome}</span>
+        ${horario ? `<span style="font-size:12px;color:var(--text2)">${horario}</span>` : ''}
+        <span style="font-size:12px;color:var(--text3)">📦 Arquivada em ${arquivadaEm} por ${t.arquivada_por || '—'}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px">${qtd} alunos</div>
+    </div>`;
+  }).join('');
+}
+
+async function abrirTurmaArquivada(turmaId) {
+  const { data: turma } = await sb.from('turmas').select('*').eq('id', turmaId).single();
+  turmaSelecionada = turma;
+  document.getElementById('arq-turma-nome').textContent = turma.nome;
+  const turno = { MANHA: 'Manhã', TARDE: 'Tarde', NOITE: 'Noite' }[turma.turno] || turma.turno;
+  const hi = turma.hora_inicio ? turma.hora_inicio.substring(0,5) : '';
+  const hf = turma.hora_fim ? turma.hora_fim.substring(0,5) : '';
+  const horario = hi ? ` · ${hi}${hf?' – '+hf:''}` : '';
+  document.getElementById('arq-turma-info').textContent = `${turma.modulo} · ${turno} · Prof. ${turma.professor_nome}${horario} · 📦 Arquivada`;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-chamada-arquivada').classList.add('active');
+  aulaAtiva = 1;
+  await renderAulasTabsArquivada();
+  await carregarChamadaArquivada(1);
+}
+
+function voltarArquivadas() {
+  turmaSelecionada = null;
+  setView('arquivadas');
+}
+
+async function renderAulasTabsArquivada() {
+  const { data: chamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id);
+  const tabs = document.getElementById('arq-aulas-tabs');
+  tabs.innerHTML = [1,2,3,4].map(n => {
+    const ch = chamadas?.find(c => c.numero_aula === n);
+    const fechada = ch?.fechada;
+    let dt = '';
+    if (ch?.data_aula) {
+      try {
+        const d = new Date(ch.data_aula + 'T12:00:00');
+        if (!isNaN(d.getTime())) dt = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+      } catch(e) {}
+    }
+    return `<button class="aula-tab ${n===aulaAtiva?'active':''} ${fechada?'fechada':''}" onclick="selecionarAulaArquivada(${n})">
+      Aula ${n}${dt ? ' · ' + dt : ''}${fechada ? ' 🔒' : ''}
+    </button>`;
+  }).join('');
+}
+
+async function selecionarAulaArquivada(n) {
+  aulaAtiva = n;
+  document.querySelectorAll('#arq-aulas-tabs .aula-tab').forEach((t,i) => t.classList.toggle('active', i+1 === n));
+  await carregarChamadaArquivada(n);
+}
+
+async function carregarChamadaArquivada(aula) {
+  const content = document.getElementById('arq-chamada-content');
+  content.innerHTML = '<div class="loading">Carregando...</div>';
+  const { data: chamada } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id).eq('numero_aula', aula).single();
+  if (!chamada) { content.innerHTML = '<div class="card"><div class="empty">Sem dados para esta aula.</div></div>'; return; }
+  const { data: turmaAlunos } = await sb.from('turma_alunos').select('*').eq('turma_id', turmaSelecionada.id).order('nome');
+  const { data: presencas } = await sb.from('chamada_presencas').select('*').eq('chamada_id', chamada.id);
+  const presMap = {};
+  (presencas || []).forEach(p => presMap[p.contrato] = p);
+  const alunos = turmaAlunos || [];
+  const presentes = Object.values(presMap).filter(p => p.status === 'C').length;
+  const ausentes = Object.values(presMap).filter(p => p.status === 'F').length;
+
+  let html = `<div class="card">`;
+  html += `<div style="background:var(--orange-light);border:0.5px solid var(--orange-border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--orange);margin-bottom:1rem">
+    📦 Turma arquivada — somente visualização
+  </div>`;
+  if (chamada.fechada) {
+    html += `<div class="chamada-fechada-banner">🔒 Chamada fechada em ${new Date(chamada.fechada_em).toLocaleString('pt-BR')} por ${chamada.fechada_por}</div>`;
+  }
+  html += `<div class="chamada-header">
+    <div class="chamada-stats">
+      <div class="chamada-stat">👥 <span>${alunos.length}</span> alunos</div>
+      <div class="chamada-stat" style="color:var(--green)">✅ <span>${presentes}</span> presentes</div>
+      <div class="chamada-stat" style="color:var(--red)">❌ <span>${ausentes}</span> ausentes</div>
+      <div class="chamada-stat" style="color:var(--text3)">— <span>${alunos.length - presentes - ausentes}</span> sem registro</div>
+    </div>
+  </div>`;
+
+  if (!alunos.length) {
+    html += `<div class="empty">Nenhum aluno nesta turma.</div>`;
+  } else {
+    html += alunos.map(a => {
+      const p = presMap[a.contrato];
+      const status = p?.status || '';
+      return `<div class="aluno-row">
+        <div class="aluno-info">
+          <div class="aluno-nome-row">${a.nome}</div>
+          <div class="aluno-contrato-row">Contrato ${a.contrato}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge ${status==='C'?'badge-c':status==='F'?'badge-f':'badge-vazio'}" style="font-size:14px;padding:6px 14px">
+            ${status || '—'}
+          </span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  html += `</div>`;
+  content.innerHTML = html;
 }
 
 async function renderAulasTabs() {
