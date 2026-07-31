@@ -45,6 +45,10 @@ async function fazerLogin() {
     document.getElementById('nav-alunos').style.display = 'flex';
     document.getElementById('nav-concluidas').style.display = 'flex';
   }
+  // Salvar sessão no localStorage
+  localStorage.setItem('sessao_cebrac', JSON.stringify({
+    id: data.id, nome: data.nome, usuario: data.usuario, perfil: data.perfil
+  }));
   await carregarProfessores();
   await carregarAlunos();
   setView('turmas');
@@ -53,6 +57,7 @@ async function fazerLogin() {
 function fazerLogout() {
   sessao = null;
   turmaSelecionada = null;
+  localStorage.removeItem('sessao_cebrac');
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-usuario').value = '';
@@ -963,7 +968,49 @@ function toast(msg, erro, ok) {
 }
 
 // ==================== INIT ====================
-window.onload = () => {
+window.onload = async () => {
+  // Tentar restaurar sessão salva
+  const sessaoSalva = localStorage.getItem('sessao_cebrac');
+  if (sessaoSalva) {
+    try {
+      const dados = JSON.parse(sessaoSalva);
+      // Verificar se usuário ainda está ativo no banco
+      const { data, error } = await sb.from('usuarios')
+        .select('*').eq('id', dados.id).eq('ativo', true).single();
+      if (data && !error) {
+        sessao = data;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        document.getElementById('topbar-usuario').textContent = data.nome;
+        document.getElementById('topbar-perfil').textContent = data.perfil;
+        document.getElementById('topbar-perfil').className = `badge-perfil badge-${data.perfil.toLowerCase()}`;
+        // Resetar menus
+        document.getElementById('nav-usuarios').style.display = 'none';
+        document.getElementById('nav-auditoria').style.display = 'none';
+        document.getElementById('nav-alunos').style.display = 'none';
+        document.getElementById('nav-concluidas').style.display = 'none';
+        document.getElementById('btn-nova-turma').style.display = 'none';
+        if (data.perfil === 'CRA') {
+          document.getElementById('nav-usuarios').style.display = 'flex';
+          document.getElementById('nav-auditoria').style.display = 'flex';
+          document.getElementById('btn-nova-turma').style.display = 'inline-flex';
+          document.getElementById('nav-alunos').style.display = 'flex';
+          document.getElementById('nav-concluidas').style.display = 'flex';
+        }
+        if (data.perfil === 'SEC') {
+          document.getElementById('btn-nova-turma').style.display = 'inline-flex';
+          document.getElementById('nav-alunos').style.display = 'flex';
+          document.getElementById('nav-concluidas').style.display = 'flex';
+        }
+        await carregarProfessores();
+        await carregarAlunos();
+        setView('turmas');
+        return;
+      }
+    } catch(e) {
+      localStorage.removeItem('sessao_cebrac');
+    }
+  }
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 };
