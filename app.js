@@ -143,7 +143,9 @@ async function carregarTurmas() {
         ${t.hora_inicio ? `<span style="font-size:12px;color:var(--text2)">🕐 ${t.hora_inicio.substring(0,5)}${t.hora_fim?' – '+t.hora_fim.substring(0,5):''}</span>` : ''}
       </div>
       <div class="turma-vagas" style="margin-top:8px">
-        <span style="font-size:12px;color:var(--text3)">${qtd} alunos</span>
+        ${qtd} alunos
+        <span class="vagas-bar"><span class="vagas-fill ${cheia?'cheia':''}" style="width:${pct}%"></span></span>
+        ${cheia ? '<span style="color:var(--red);font-size:11px;font-weight:600"> +30 alunos</span>' : `<span style="font-size:11px;color:var(--text3)"> ${30-qtd} vagas</span>`}
       </div>
     </div>`;
   }).join('');
@@ -389,7 +391,7 @@ async function carregarChamada(aula) {
   const ausentes = Object.values(presMap).filter(p => p.status === 'F').length;
   const bloqueado = chamada.fechada && sessao.perfil === 'PROF';
   const podeReabrir = chamada.fechada && sessao.perfil === 'CRA';
-  const canAddRemove = sessao.perfil === 'CRA';
+  const canAddRemove = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
   let html = `<div class="card">`;
   if (chamada.fechada) {
     html += `<div class="chamada-fechada-banner">🔒 Chamada fechada em ${new Date(chamada.fechada_em).toLocaleString('pt-BR')} por ${chamada.fechada_por}</div>`;
