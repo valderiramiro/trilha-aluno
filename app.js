@@ -392,7 +392,7 @@ async function carregarChamada(aula) {
   const ausentes = Object.values(presMap).filter(p => p.status === 'F').length;
   const bloqueado = chamada.fechada && sessao.perfil === 'PROF';
   const podeReabrir = chamada.fechada && sessao.perfil === 'CRA';
-  const canAddRemove = sessao.perfil === 'CRA' || sessao.perfil === 'SEC';
+  const canAddRemove = sessao.perfil === 'CRA';
   let html = `<div class="card">`;
   if (chamada.fechada) {
     html += `<div class="chamada-fechada-banner">🔒 Chamada fechada em ${new Date(chamada.fechada_em).toLocaleString('pt-BR')} por ${chamada.fechada_por}</div>`;
