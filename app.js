@@ -121,8 +121,7 @@ async function carregarTurmas() {
   const totalAlunos = turmas.reduce((s, t) => s + (t.turma_alunos[0]?.count || 0), 0);
   document.getElementById('turmas-stats').innerHTML = `
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Turmas ativas</div></div>
-    <div class="stat-card"><div class="stat-num">${totalAlunos}</div><div class="stat-label">Total de alunos</div></div>
-    <div class="stat-card"><div class="stat-num">${turmas.reduce((s,t)=>s+(30-(t.turma_alunos[0]?.count||0)),0)}</div><div class="stat-label">Vagas disponíveis</div></div>`;
+    <div class="stat-card"><div class="stat-num">${totalAlunos}</div><div class="stat-label">Total de alunos</div></div>`;
   lista.innerHTML = turmas.map(t => {
     const qtd = t.turma_alunos[0]?.count || 0;
     const pct = Math.min((qtd / 30) * 100, 100);
@@ -144,9 +143,7 @@ async function carregarTurmas() {
         ${t.hora_inicio ? `<span style="font-size:12px;color:var(--text2)">🕐 ${t.hora_inicio.substring(0,5)}${t.hora_fim?' – '+t.hora_fim.substring(0,5):''}</span>` : ''}
       </div>
       <div class="turma-vagas" style="margin-top:8px">
-        ${qtd}/${30} alunos
-        <span class="vagas-bar"><span class="vagas-fill ${cheia?'cheia':''}" style="width:${pct}%"></span></span>
-        ${cheia ? '<span style="color:var(--red);font-size:11px;font-weight:600"> TURMA CHEIA</span>' : `<span style="font-size:11px;color:var(--text3)"> ${30-qtd} vagas</span>`}
+        <span style="font-size:12px;color:var(--text3)">${qtd} alunos</span>
       </div>
     </div>`;
   }).join('');
@@ -621,9 +618,7 @@ function buscarAlunoModal() {
 }
 
 async function addAlunoTurma(contrato, nome) {
-  const { data: turmaAlunos } = await sb.from('turma_alunos').select('count').eq('turma_id', turmaSelecionada.id);
-  const qtd = turmaAlunos?.[0]?.count || 0;
-  if (qtd >= 30) { toast('Turma com vagas esgotadas', true); return; }
+
   const { error } = await sb.from('turma_alunos').insert({ turma_id: turmaSelecionada.id, contrato, nome, adicionado_por: sessao.usuario });
   if (error) {
     if (error.message.includes('unique')) toast('Aluno já está nesta turma', true);
