@@ -433,8 +433,7 @@ async function carregarChamada(aula) {
       <div class="chamada-stat" style="color:var(--text3)">— <span>${alunos.length - presentes - ausentes}</span> sem registro</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${canAddRemove && podeAddRegular ? `<button class="btn-secondary btn-sm" onclick="abrirModalAddAluno()">+ Aluno</button>` : ''}
-      ${canAddRemove && !podeAddRegular ? `<button class="btn-secondary btn-sm" disabled title="Não é possível adicionar: chamada fechada ou aula já ocorreu" style="opacity:0.4;cursor:not-allowed">+ Aluno</button>` : ''}
+      ${canAddRemove ? `<button class="btn-secondary btn-sm" onclick="abrirModalAddAluno()">+ Aluno</button>` : ''}
       ${!chamada.fechada ? `<button class="btn-fechar" onclick="fecharChamada('${chamada.id}')">🔒 Fechar Chamada</button>` : ''}
       ${podeReabrir ? `<button class="btn-reabrir" onclick="reabrirChamada('${chamada.id}')">🔓 Reabrir</button>` : ''}
     </div>
