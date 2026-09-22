@@ -307,6 +307,15 @@ async function carregarChamadaConcluida(aula) {
   const turmaAlunos = (todosAlunosTurma || []).filter(a =>
     !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.includes(aula))
   );
+  // Verificar se pode adicionar aluno regular (todas chamadas abertas e datas futuras/hoje)
+  const { data: todasChamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const podeAddRegular = (todasChamadas || []).every(ch => {
+    if (ch.fechada) return false;
+    if (!ch.data_aula) return true;
+    const dataAula = new Date(ch.data_aula + 'T12:00:00'); dataAula.setHours(0, 0, 0, 0);
+    return dataAula >= hoje;
+  });
   const { data: presencas } = await sb.from('chamada_presencas').select('*').eq('chamada_id', chamada.id);
   const presMap = {};
   (presencas || []).forEach(p => presMap[p.contrato] = p);
@@ -393,6 +402,15 @@ async function carregarChamada(aula) {
   const turmaAlunos = (todosAlunosTurma || []).filter(a =>
     !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.includes(aula))
   );
+  // Verificar se pode adicionar aluno regular (todas chamadas abertas e datas futuras/hoje)
+  const { data: todasChamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const podeAddRegular = (todasChamadas || []).every(ch => {
+    if (ch.fechada) return false;
+    if (!ch.data_aula) return true;
+    const dataAula = new Date(ch.data_aula + 'T12:00:00'); dataAula.setHours(0, 0, 0, 0);
+    return dataAula >= hoje;
+  });
   // Buscar presenças
   const { data: presencas } = await sb.from('chamada_presencas').select('*').eq('chamada_id', chamada.id);
   const presMap = {};
@@ -415,7 +433,8 @@ async function carregarChamada(aula) {
       <div class="chamada-stat" style="color:var(--text3)">— <span>${alunos.length - presentes - ausentes}</span> sem registro</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${canAddRemove ? `<button class="btn-secondary btn-sm" onclick="abrirModalAddAluno()">+ Aluno</button>` : ''}
+      ${canAddRemove && podeAddRegular ? `<button class="btn-secondary btn-sm" onclick="abrirModalAddAluno()">+ Aluno</button>` : ''}
+      ${canAddRemove && !podeAddRegular ? `<button class="btn-secondary btn-sm" disabled title="Não é possível adicionar: chamada fechada ou aula já ocorreu" style="opacity:0.4;cursor:not-allowed">+ Aluno</button>` : ''}
       ${!chamada.fechada ? `<button class="btn-fechar" onclick="fecharChamada('${chamada.id}')">🔒 Fechar Chamada</button>` : ''}
       ${podeReabrir ? `<button class="btn-reabrir" onclick="reabrirChamada('${chamada.id}')">🔓 Reabrir</button>` : ''}
     </div>
@@ -433,8 +452,8 @@ async function carregarChamada(aula) {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="aluno-presenca">
-            <button class="btn-presenca ${status==='C'?'ativo-c':''}" onclick="lancarPresenca('${chamada.id}','${a.contrato}','${a.nome.replace(/'/g,"\\'")}','C')" ${bloqueado?'disabled':''}>C</button>
-            <button class="btn-presenca ${status==='F'?'ativo-f':''}" onclick="lancarPresenca('${chamada.id}','${a.contrato}','${a.nome.replace(/'/g,"\\'")}','F')" ${bloqueado?'disabled':''}>F</button>
+            <button class="btn-presenca ${status==='C'?'ativo-c':''}" onclick="lancarPresenca('${chamada.id}','${a.contrato}','${a.nome.replace(/'/g,"\\'")}','C')" ${bloqueado && !a.reposicao?'disabled':''}>C</button>
+            <button class="btn-presenca ${status==='F'?'ativo-f':''}" onclick="lancarPresenca('${chamada.id}','${a.contrato}','${a.nome.replace(/'/g,"\\'")}','F')" ${bloqueado && !a.reposicao?'disabled':''}>F</button>
           </div>
           ${canAddRemove ? `<button class="btn-icon danger" onclick="removerAlunoDaTurma('${a.id}','${a.nome.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>` : ''}
           ${canAddRemove ? `<button class="btn-icon" onclick="editarAluno('${a.id}','${a.nome.replace(/'/g,"\\'")}','${a.contrato}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : ''}
@@ -669,6 +688,23 @@ async function confirmarAddAluno() {
   if (reposicaoAtual && aulasRep.length === 0) {
     toast('Selecione ao menos uma aula para reposição', true);
     return;
+  }
+
+  // Reposição: avisar se aula selecionada já ocorreu, mas não bloquear
+  if (reposicaoAtual && aulasRep.length > 0) {
+    const { data: chamsRep } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id);
+    const hojeRep = new Date(); hojeRep.setHours(0, 0, 0, 0);
+    const aulasPassadas = aulasRep.filter(n => {
+      const ch = (chamsRep || []).find(c => c.numero_aula === n);
+      if (!ch || !ch.data_aula) return false;
+      const d = new Date(ch.data_aula + 'T12:00:00'); d.setHours(0,0,0,0);
+      return d < hojeRep;
+    });
+    if (aulasPassadas.length > 0) {
+      const nomes = aulasPassadas.map(n => 'Aula ' + n).join(', ');
+      const msg = 'Atenção: ' + nomes + (aulasPassadas.length > 1 ? ' já foram ministradas.' : ' já foi ministrada.') + ' Deseja mesmo adicionar ' + alunoParaAdd.nome + ' como reposição?';
+      if (!confirm(msg)) return;
+    }
   }
 
   // Reposição não tem restrição de data nem limite
