@@ -670,6 +670,42 @@ async function confirmarAddAluno() {
     toast('Selecione ao menos uma aula para reposição', true);
     return;
   }
+
+  // Reposição não tem restrição de data nem limite
+  if (!reposicaoAtual) {
+    // Buscar chamadas da turma para validar datas
+    const { data: chamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id).order('numero_aula');
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    for (const ch of (chamadas || [])) {
+      if (!ch.data_aula) continue;
+      const dataAula = new Date(ch.data_aula + 'T12:00:00');
+      dataAula.setHours(0, 0, 0, 0);
+
+      // Chamada fechada — não pode adicionar
+      if (ch.fechada) {
+        toast(`Não é possível adicionar: chamada da Aula ${ch.numero_aula} já está fechada.`, true);
+        return;
+      }
+
+      // Data anterior a hoje — não pode adicionar
+      if (dataAula < hoje) {
+        const dtFmt = dataAula.toLocaleDateString('pt-BR');
+        toast(`Não é possível adicionar: Aula ${ch.numero_aula} já ocorreu em ${dtFmt}.`, true);
+        return;
+      }
+    }
+
+    // Verificar limite de 30 (apenas alunos regulares)
+    const { data: contagem } = await sb.from('turma_alunos').select('count').eq('turma_id', turmaSelecionada.id).eq('reposicao', false);
+    const qtdAtual = contagem?.[0]?.count || 0;
+    if (qtdAtual >= 30 && sessao.perfil !== 'CRA') {
+      toast('Turma com 30 alunos — apenas o CRA pode adicionar mais', true);
+      return;
+    }
+  }
+
   await addAlunoTurma(alunoParaAdd.contrato, alunoParaAdd.nome, reposicaoAtual, aulasRep);
 }
 
