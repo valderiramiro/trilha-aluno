@@ -710,6 +710,20 @@ async function confirmarAddAluno() {
 }
 
 async function addAlunoTurma(contrato, nome, reposicao = false, aulasRep = []) {
+  // Validações para aluno regular (segunda barreira de segurança)
+  if (!reposicao) {
+    const { data: chamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id).order('numero_aula');
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    for (const ch of (chamadas || [])) {
+      if (!ch.data_aula) continue;
+      const dataAula = new Date(ch.data_aula + 'T12:00:00'); dataAula.setHours(0, 0, 0, 0);
+      if (ch.fechada) { toast(`Aula ${ch.numero_aula} já está fechada — não é possível adicionar.`, true); return; }
+      if (dataAula < hoje) { toast(`Aula ${ch.numero_aula} já ocorreu em ${dataAula.toLocaleDateString('pt-BR')} — não é possível adicionar.`, true); return; }
+    }
+    const { data: cont } = await sb.from('turma_alunos').select('count').eq('turma_id', turmaSelecionada.id).eq('reposicao', false);
+    const qtd = cont?.[0]?.count || 0;
+    if (qtd >= 30 && sessao.perfil !== 'CRA') { toast('Turma com 30 alunos — apenas o CRA pode adicionar mais', true); return; }
+  }
 
   const { error } = await sb.from('turma_alunos').insert({
     turma_id: turmaSelecionada.id, contrato, nome,
