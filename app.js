@@ -4,6 +4,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let sessao = null; // { id, nome, usuario, perfil }
 let turmaSelecionada = null;
+let alunoParaAdd = null; // { contrato, nome }
+let reposicaoAtual = false;
 let aulaAtiva = 1;
 let alunoEditando = null;
 let turmaEditando = null;
@@ -68,10 +70,11 @@ function fazerLogout() {
 async function carregarProfessores() {
   const { data } = await sb.from('usuarios').select('*').eq('perfil', 'PROF').eq('ativo', true);
   professores = data || [];
+  const opts = professores.map(p => `<option value="${p.id}" data-nome="${p.usuario}">${p.nome}</option>`).join('');
   const sel = document.getElementById('turma-professor');
-  if (sel) {
-    sel.innerHTML = professores.map(p => `<option value="${p.id}" data-nome="${p.usuario}">${p.nome}</option>`).join('');
-  }
+  if (sel) sel.innerHTML = opts;
+  const selEdit = document.getElementById('edit-turma-professor');
+  if (selEdit) selEdit.innerHTML = opts;
 }
 
 async function carregarAlunos() {
@@ -299,7 +302,11 @@ async function carregarChamadaConcluida(aula) {
   content.innerHTML = '<div class="loading">Carregando...</div>';
   const { data: chamada } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id).eq('numero_aula', aula).single();
   if (!chamada) { content.innerHTML = '<div class="card"><div class="empty">Sem dados para esta aula.</div></div>'; return; }
-  const { data: turmaAlunos } = await sb.from('turma_alunos').select('*').eq('turma_id', turmaSelecionada.id).order('nome');
+  const { data: todosAlunosTurma } = await sb.from('turma_alunos').select('*').eq('turma_id', turmaSelecionada.id).order('nome');
+  // Filtrar: alunos regulares + alunos de reposição que têm esta aula
+  const turmaAlunos = (todosAlunosTurma || []).filter(a =>
+    !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.includes(aula))
+  );
   const { data: presencas } = await sb.from('chamada_presencas').select('*').eq('chamada_id', chamada.id);
   const presMap = {};
   (presencas || []).forEach(p => presMap[p.contrato] = p);
@@ -331,7 +338,7 @@ async function carregarChamadaConcluida(aula) {
       const status = p?.status || '';
       return `<div class="aluno-row">
         <div class="aluno-info">
-          <div class="aluno-nome-row">${a.nome}</div>
+          <div class="aluno-nome-row">${a.nome}${a.reposicao ? ' <span class="badge badge-rep" style="font-size:10px;padding:1px 6px">REP</span>' : ''}</div>
           <div class="aluno-contrato-row">Contrato ${a.contrato}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -381,7 +388,11 @@ async function carregarChamada(aula) {
     chamada = nova;
   }
   // Buscar alunos da turma
-  const { data: turmaAlunos } = await sb.from('turma_alunos').select('*').eq('turma_id', turmaSelecionada.id).order('nome');
+  const { data: todosAlunosTurma } = await sb.from('turma_alunos').select('*').eq('turma_id', turmaSelecionada.id).order('nome');
+  // Filtrar: alunos regulares + alunos de reposição que têm esta aula
+  const turmaAlunos = (todosAlunosTurma || []).filter(a =>
+    !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.includes(aula))
+  );
   // Buscar presenças
   const { data: presencas } = await sb.from('chamada_presencas').select('*').eq('chamada_id', chamada.id);
   const presMap = {};
@@ -417,7 +428,7 @@ async function carregarChamada(aula) {
       const status = p?.status || '';
       return `<div class="aluno-row" id="row-${a.contrato}">
         <div class="aluno-info">
-          <div class="aluno-nome-row">${a.nome}</div>
+          <div class="aluno-nome-row">${a.nome}${a.reposicao ? ' <span class="badge badge-rep" style="font-size:10px;padding:1px 6px">REP</span>' : ''}</div>
           <div class="aluno-contrato-row">Contrato ${a.contrato}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -554,17 +565,20 @@ async function salvarTurma() {
 
 async function editarTurma(id) {
   turmaEditando = id;
-  // Buscar dados completos da turma
   const { data: t } = await sb.from('turmas').select('*').eq('id', id).single();
   const { data: chamadas } = await sb.from('chamadas').select('*').eq('turma_id', id).order('numero_aula');
   document.getElementById('edit-turma-nome').value = t.nome || '';
   document.getElementById('edit-turma-hora-inicio').value = t.hora_inicio || '';
   document.getElementById('edit-turma-hora-fim').value = t.hora_fim || '';
-  // Preencher datas das aulas
   [1,2,3,4].forEach(n => {
     const ch = chamadas?.find(c => c.numero_aula === n);
     document.getElementById(`edit-turma-data${n}`).value = ch?.data_aula || '';
   });
+  // Preencher professor atual
+  const profSel = document.getElementById('edit-turma-professor');
+  if (profSel && t.professor_id) {
+    profSel.value = t.professor_id;
+  }
   abrirModal('modal-editar-turma');
 }
 
@@ -573,8 +587,14 @@ async function salvarEdicaoTurma() {
   const hora_inicio = document.getElementById('edit-turma-hora-inicio').value || null;
   const hora_fim = document.getElementById('edit-turma-hora-fim').value || null;
   if (!nome) { toast('Nome inválido', true); return; }
+  // Professor
+  const profSel = document.getElementById('edit-turma-professor');
+  const professor_id = profSel?.value || null;
+  const professor_nome = profSel?.options[profSel.selectedIndex]?.getAttribute('data-nome') || null;
   // Atualizar turma
-  await sb.from('turmas').update({ nome, hora_inicio, hora_fim }).eq('id', turmaEditando);
+  const updateData = { nome, hora_inicio, hora_fim };
+  if (professor_id) { updateData.professor_id = professor_id; updateData.professor_nome = professor_nome; }
+  await sb.from('turmas').update(updateData).eq('id', turmaEditando);
   // Atualizar datas das chamadas
   for (let n = 1; n <= 4; n++) {
     const rawData = document.getElementById(`edit-turma-data${n}`).value;
@@ -613,15 +633,54 @@ function buscarAlunoModal() {
   const found = todosAlunos.filter(a => normalizar(a.nome).includes(q) || a.contrato.includes(q)).slice(0, 15);
   if (!found.length) { el.innerHTML = '<div class="empty">Nenhum aluno encontrado</div>'; return; }
   el.innerHTML = found.map(a => `
-    <div class="result-item" onclick="addAlunoTurma('${a.contrato}','${a.nome.replace(/'/g,"\\'")}')">
+    <div class="result-item" onclick="selecionarAlunoParaAdd('${a.contrato}','${a.nome.replace(/'/g,"\\'")}')">
       <div><div class="result-nome">${a.nome}</div><div class="result-sub">Contrato ${a.contrato}</div></div>
       <span style="color:var(--orange);font-weight:600">+</span>
     </div>`).join('');
 }
 
-async function addAlunoTurma(contrato, nome) {
+function selecionarAlunoParaAdd(contrato, nome) {
+  alunoParaAdd = { contrato, nome };
+  document.getElementById('confirmar-add-titulo').textContent = 'Adicionar Aluno';
+  document.getElementById('confirmar-add-nome').textContent = nome + ' · Contrato ' + contrato;
+  document.getElementById('add-reposicao').checked = false;
+  document.getElementById('reposicao-aulas').style.display = 'none';
+  document.querySelectorAll('.aula-rep-check').forEach(c => c.checked = false);
+  reposicaoAtual = false;
+  document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+  document.getElementById('modal-confirmar-add').style.display = 'block';
+}
 
-  const { error } = await sb.from('turma_alunos').insert({ turma_id: turmaSelecionada.id, contrato, nome, adicionado_por: sessao.usuario });
+function toggleReposicao() {
+  reposicaoAtual = document.getElementById('add-reposicao').checked;
+  document.getElementById('reposicao-aulas').style.display = reposicaoAtual ? 'block' : 'none';
+}
+
+function voltarBuscaModal() {
+  document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+  document.getElementById('modal-add-aluno').style.display = 'block';
+}
+
+async function confirmarAddAluno() {
+  if (!alunoParaAdd) return;
+  const aulasRep = reposicaoAtual
+    ? Array.from(document.querySelectorAll('.aula-rep-check:checked')).map(c => parseInt(c.value))
+    : [];
+  if (reposicaoAtual && aulasRep.length === 0) {
+    toast('Selecione ao menos uma aula para reposição', true);
+    return;
+  }
+  await addAlunoTurma(alunoParaAdd.contrato, alunoParaAdd.nome, reposicaoAtual, aulasRep);
+}
+
+async function addAlunoTurma(contrato, nome, reposicao = false, aulasRep = []) {
+
+  const { error } = await sb.from('turma_alunos').insert({
+    turma_id: turmaSelecionada.id, contrato, nome,
+    adicionado_por: sessao.usuario,
+    reposicao: reposicao,
+    aulas_reposicao: reposicao ? aulasRep : null
+  });
   if (error) {
     if (error.message.includes('unique')) toast('Aluno já está nesta turma', true);
     else toast('Erro ao adicionar', true);
