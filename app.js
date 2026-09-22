@@ -768,8 +768,12 @@ async function addAlunoTurma(contrato, nome, reposicao = false, aulasRep = []) {
     aulas_reposicao: reposicao ? aulasRep : null
   });
   if (error) {
-    if (error.message.includes('unique')) toast('Aluno já está nesta turma', true);
-    else toast('Erro ao adicionar', true);
+    if (error.message.includes('unique')) {
+      if (reposicao) toast('Este aluno já tem registro nesta turma. Verifique se já está cadastrado como regular ou reposição.', true);
+      else toast('Aluno já está nesta turma', true);
+    } else {
+      toast('Erro ao adicionar: ' + error.message, true);
+    }
     return;
   }
   toast(`${nome} adicionado`);
