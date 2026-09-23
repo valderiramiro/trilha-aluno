@@ -768,6 +768,24 @@ async function addAlunoTurma(contrato, nome, reposicao = false, aulasRep = []) {
     }
   }
 
+  if (reposicao) {
+    // Verificar se já existe registro de reposição para este aluno nesta turma
+    const { data: repExistente } = await sb.from('turma_alunos')
+      .select('*').eq('turma_id', turmaSelecionada.id).eq('contrato', contrato).eq('reposicao', true).single();
+    if (repExistente) {
+      // Atualizar: merge das aulas existentes com as novas
+      const aulasAtuais = repExistente.aulas_reposicao || [];
+      const aulasNovas = [...new Set([...aulasAtuais, ...aulasRep])].sort((a,b) => a-b);
+      const { error: errUp } = await sb.from('turma_alunos')
+        .update({ aulas_reposicao: aulasNovas, adicionado_por: sessao.usuario })
+        .eq('id', repExistente.id);
+      if (errUp) { toast('Erro ao atualizar reposição: ' + errUp.message, true); return; }
+      toast(`${nome} — aulas de reposição atualizadas`);
+      await carregarChamada(aulaAtiva);
+      return;
+    }
+  }
+
   const { error } = await sb.from('turma_alunos').insert({
     turma_id: turmaSelecionada.id, contrato, nome,
     adicionado_por: sessao.usuario,
@@ -775,12 +793,8 @@ async function addAlunoTurma(contrato, nome, reposicao = false, aulasRep = []) {
     aulas_reposicao: reposicao ? aulasRep : null
   });
   if (error) {
-    if (error.message.includes('unique')) {
-      if (reposicao) toast('Este aluno já tem registro nesta turma. Verifique se já está cadastrado como regular ou reposição.', true);
-      else toast('Aluno já está nesta turma', true);
-    } else {
-      toast('Erro ao adicionar: ' + error.message, true);
-    }
+    if (error.message.includes('unique')) toast('Aluno já está nesta turma', true);
+    else toast('Erro ao adicionar: ' + error.message, true);
     return;
   }
   toast(`${nome} adicionado`);
