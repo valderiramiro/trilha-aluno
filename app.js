@@ -454,7 +454,7 @@ async function carregarChamada(aula) {
             <button class="btn-presenca ${status==='C'?'ativo-c':''}" onclick="lancarPresenca('${chamada.id}','${a.contrato}','${a.nome.replace(/'/g,"\\'")}','C')" ${bloqueado && !a.reposicao?'disabled':''}>C</button>
             <button class="btn-presenca ${status==='F'?'ativo-f':''}" onclick="lancarPresenca('${chamada.id}','${a.contrato}','${a.nome.replace(/'/g,"\\'")}','F')" ${bloqueado && !a.reposicao?'disabled':''}>F</button>
           </div>
-          ${canAddRemove ? `<button class="btn-icon danger" onclick="removerAlunoDaTurma('${a.id}','${a.nome.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>` : ''}
+          ${canAddRemove ? `<button class="btn-icon danger" onclick="removerAlunoDaTurma('${a.id}','${a.nome.replace(/'/g,"\\'")  }',${a.reposicao},${JSON.stringify(a.aulas_reposicao||[])})"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>` : ''}
           ${canAddRemove ? `<button class="btn-icon" onclick="editarAluno('${a.id}','${a.nome.replace(/'/g,"\\'")}','${a.contrato}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : ''}
         </div>
       </div>`;
@@ -832,10 +832,37 @@ async function salvarEdicaoAluno() {
   toast('Aluno atualizado');
 }
 
-async function removerAlunoDaTurma(id, nome) {
-  if (!confirm(`Remover ${nome} desta turma?`)) return;
-  await sb.from('turma_alunos').delete().eq('id', id);
-  toast(`${nome} removido`);
+async function removerAlunoDaTurma(id, nome, reposicao, aulasReposicao) {
+  if (!reposicao) {
+    // Aluno regular — remove tudo sem perguntar qual aula
+    if (!confirm(`Remover ${nome} desta turma?`)) return;
+    await sb.from('turma_alunos').delete().eq('id', id);
+    toast(`${nome} removido`);
+  } else if (aulasReposicao && aulasReposicao.length > 1) {
+    // Reposição com múltiplas aulas — perguntar qual remover
+    const aulasStr = aulasReposicao.map(n => `Aula ${n}`).join(', ');
+    const opcao = prompt(`${nome} tem reposição nas aulas: ${aulasStr}\n\nDigite o número da aula para remover (ou "todas" para remover todas):`);
+    if (!opcao) return;
+    if (opcao.toLowerCase() === 'todas') {
+      if (!confirm(`Remover ${nome} de todas as aulas de reposição?`)) return;
+      await sb.from('turma_alunos').delete().eq('id', id);
+      toast(`${nome} removido de todas as reposições`);
+    } else {
+      const aulaNum = Number(opcao);
+      if (!aulasReposicao.map(Number).includes(aulaNum)) {
+        toast(`Aula ${opcao} não encontrada nas reposições deste aluno`, true);
+        return;
+      }
+      const aulasNovas = aulasReposicao.map(Number).filter(a => a !== aulaNum).sort((a,b) => a-b);
+      await sb.from('turma_alunos').update({ aulas_reposicao: aulasNovas }).eq('id', id);
+      toast(`${nome} removido da Aula ${aulaNum}`);
+    }
+  } else {
+    // Reposição com 1 aula — remove direto
+    if (!confirm(`Remover reposição de ${nome}?`)) return;
+    await sb.from('turma_alunos').delete().eq('id', id);
+    toast(`Reposição de ${nome} removida`);
+  }
   await carregarChamada(aulaAtiva);
 }
 
