@@ -305,7 +305,7 @@ async function carregarChamadaConcluida(aula) {
   const { data: todosAlunosTurma } = await sb.from('turma_alunos').select('*').eq('turma_id', turmaSelecionada.id).order('nome');
   // Filtrar: alunos regulares + alunos de reposição que têm esta aula
   const turmaAlunos = (todosAlunosTurma || []).filter(a =>
-    !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.includes(aula))
+    !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.map(Number).includes(Number(aula)))
   );
   // Verificar se pode adicionar aluno regular (todas chamadas abertas e datas futuras/hoje)
   const { data: todasChamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id);
@@ -400,7 +400,7 @@ async function carregarChamada(aula) {
   const { data: todosAlunosTurma } = await sb.from('turma_alunos').select('*').eq('turma_id', turmaSelecionada.id).order('nome');
   // Filtrar: alunos regulares + alunos de reposição que têm esta aula
   const turmaAlunos = (todosAlunosTurma || []).filter(a =>
-    !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.includes(aula))
+    !a.reposicao || (a.aulas_reposicao && a.aulas_reposicao.map(Number).includes(Number(aula)))
   );
   // Verificar se pode adicionar aluno regular (todas chamadas abertas e datas futuras/hoje)
   const { data: todasChamadas } = await sb.from('chamadas').select('*').eq('turma_id', turmaSelecionada.id);
@@ -682,7 +682,7 @@ function voltarBuscaModal() {
 async function confirmarAddAluno() {
   if (!alunoParaAdd) return;
   const aulasRep = reposicaoAtual
-    ? Array.from(document.querySelectorAll('.aula-rep-check:checked')).map(c => parseInt(c.value))
+    ? Array.from(document.querySelectorAll('.aula-rep-check:checked')).map(c => Number(c.value))
     : [];
   if (reposicaoAtual && aulasRep.length === 0) {
     toast('Selecione ao menos uma aula para reposição', true);
@@ -774,8 +774,8 @@ async function addAlunoTurma(contrato, nome, reposicao = false, aulasRep = []) {
       .select('*').eq('turma_id', turmaSelecionada.id).eq('contrato', contrato).eq('reposicao', true).single();
     if (repExistente) {
       // Atualizar: merge das aulas existentes com as novas
-      const aulasAtuais = repExistente.aulas_reposicao || [];
-      const aulasNovas = [...new Set([...aulasAtuais, ...aulasRep])].sort((a,b) => a-b);
+      const aulasAtuais = (repExistente.aulas_reposicao || []).map(Number);
+      const aulasNovas = [...new Set([...aulasAtuais, ...aulasRep.map(Number)])].sort((a,b) => a-b);
       const { error: errUp } = await sb.from('turma_alunos')
         .update({ aulas_reposicao: aulasNovas, adicionado_por: sessao.usuario })
         .eq('id', repExistente.id);
